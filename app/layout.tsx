@@ -3,6 +3,7 @@ import './globals.css'
 import { SonnerProvider } from '@/components/providers/SonnerProvider'
 import { Suspense } from 'react'
 import ClientBoundary from './ClientBoundary'
+import LoadingSpinner from '@/components/LoadingSpinner'
 export const metadata: Metadata = {
   title: 'TailorPal — Fashion Shop Management & Marketplace',
   description:
@@ -40,7 +41,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         ────────────────────────────────────────────────────────────────
       */}
      <body className="font-sans bg-background text-foreground antialiased">
-  <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+  <Suspense fallback={<LoadingSpinner />}>
     <ClientBoundary>{children}</ClientBoundary>
   </Suspense>
   <SonnerProvider />
