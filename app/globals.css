@@ -1,0 +1,219 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* ── Neutral foundation ──────────────────────────────────────────── */
+    --background:      36 20% 98%;       /* warm off-white: #FAF9F7       */
+    --foreground:      220 20% 10%;      /* near-black: #141720            */
+
+    --card:            0 0% 100%;
+    --card-foreground: 220 20% 10%;
+
+    --popover:         0 0% 100%;
+    --popover-foreground: 220 20% 10%;
+
+    /* ── Primary: deep midnight ink ────────────────────────────────────  */
+    /* A sophisticated near-black with a cool blue undertone               */
+    --primary:         220 60% 14%;      /* #0D1A33                        */
+    --primary-foreground: 36 20% 98%;
+
+    /* ── Accent: warm terracotta gold ──────────────────────────────────  */
+    /* Fashion-forward, warm, luxurious — not a screaming SaaS color       */
+    --accent:          30 72% 52%;       /* #D97B2B  warm amber/gold       */
+    --accent-foreground: 0 0% 100%;
+
+    /* ── Secondary: soft sage ──────────────────────────────────────────  */
+    --secondary:       150 18% 92%;      /* very light sage tint           */
+    --secondary-foreground: 220 20% 20%;
+
+    --muted:           36 15% 94%;       /* warm off-white muted           */
+    --muted-foreground: 220 10% 48%;     /* cool mid-grey                  */
+
+    --destructive:     0 72% 51%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border:          36 12% 88%;       /* warm light border              */
+    --input:           36 12% 88%;
+    --ring:            30 72% 52%;       /* accent for focus ring          */
+
+    --radius: 0.625rem;
+
+    /* ── Brand tokens ───────────────────────────────────────────────── */
+    --brand-ink:       #0D1A33;          /* deep midnight blue-black       */
+    --brand-gold:      #D97B2B;          /* warm terracotta gold           */
+    --brand-gold-light:#F5C58A;          /* pale gold tint                 */
+    --brand-cream:     #FAF9F7;          /* warm cream background          */
+    --brand-sage:      #7A9E8E;          /* soft sage green accent         */
+    --brand-charcoal:  #2D3142;          /* readable dark grey             */
+    --brand-stone:     #8B8680;          /* warm neutral mid-tone          */
+
+    /* Chart */
+    --chart-1: 220 60% 14%;
+    --chart-2: 30 72% 52%;
+    --chart-3: 150 30% 45%;
+    --chart-4: 220 20% 55%;
+    --chart-5: 38 80% 65%;
+  }
+
+  .dark {
+    --background:      220 25% 8%;
+    --foreground:      36 20% 95%;
+    --card:            220 25% 11%;
+    --card-foreground: 36 20% 95%;
+    --primary:         36 20% 95%;
+    --primary-foreground: 220 25% 8%;
+    --accent:          30 72% 58%;
+    --accent-foreground: 220 25% 8%;
+    --secondary:       220 20% 18%;
+    --secondary-foreground: 36 20% 85%;
+    --muted:           220 20% 14%;
+    --muted-foreground: 220 10% 55%;
+    --border:          220 20% 18%;
+    --input:           220 20% 18%;
+    --ring:            30 72% 52%;
+  }
+}
+
+@layer base {
+  * { @apply border-border; }
+  html { scroll-behavior: smooth; }
+
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    background-color: #FAF9F7;
+  }
+
+  h1, h2, h3, h4 {
+    font-family: 'DM Serif Display', Georgia, serif;
+    letter-spacing: -0.01em;
+  }
+
+  /* Fine typographic rhythm */
+  p { line-height: 1.7; }
+}
+
+@layer utilities {
+  /* ── Font families ──────────────────────────────────────────────────── */
+  .font-display  { font-family: 'DM Serif Display', Georgia, serif; }
+  .font-body     { font-family: 'Plus Jakarta Sans', sans-serif; }
+
+  /* ── Brand gradients (subtle, not screaming) ─────────────────────── */
+  .gradient-brand {
+    background: linear-gradient(135deg, #0D1A33 0%, #2D3142 100%);
+  }
+  .gradient-gold {
+    background: linear-gradient(135deg, #D97B2B 0%, #F5A94E 100%);
+  }
+  .gradient-hero {
+    background: linear-gradient(160deg, #0D1A33 0%, #1A2744 45%, #2D3142 100%);
+  }
+  .gradient-warm {
+    background: linear-gradient(135deg, #FAF9F7 0%, #F5EFE6 100%);
+  }
+
+  /* ── Text gradients ─────────────────────────────────────────────────  */
+  .text-gradient-brand {
+    background: linear-gradient(135deg, #0D1A33 0%, #2D3142 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-gold {
+    background: linear-gradient(135deg, #D97B2B 0%, #F5A94E 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .text-gradient-light {
+    background: linear-gradient(135deg, #D97B2B 0%, #F5C58A 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  /* ── Glass / blur surfaces ────────────────────────────────────────── */
+  .glass {
+    background: rgba(255,255,255,0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.35);
+  }
+  .glass-dark {
+    background: rgba(13,26,51,0.55);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+
+  /* ── Shadows ──────────────────────────────────────────────────────── */
+  .shadow-brand   { box-shadow: 0 4px 24px rgba(13,26,51,0.18); }
+  .shadow-brand-lg { box-shadow: 0 8px 48px rgba(13,26,51,0.24); }
+  .shadow-gold    { box-shadow: 0 4px 24px rgba(217,123,43,0.28); }
+  .shadow-card    { box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 20px rgba(0,0,0,0.06); }
+  .shadow-card-hover { box-shadow: 0 8px 40px rgba(13,26,51,0.12); }
+
+  /* ── Auth panel ───────────────────────────────────────────────────── */
+  .auth-panel-bg {
+    background: linear-gradient(160deg, #0D1A33 0%, #1A2744 50%, #2D3142 100%);
+  }
+
+  /* ── Animations ───────────────────────────────────────────────────── */
+  @keyframes float {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-8px); }
+  }
+  @keyframes float-delayed {
+    0%, 100% { transform: translateY(0px); }
+    50%       { transform: translateY(-6px); }
+  }
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+  }
+  @keyframes slideUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes shimmer {
+    0%   { background-position: -200% center; }
+    100% { background-position:  200% center; }
+  }
+  @keyframes pulse-glow {
+    0%, 100% { box-shadow: 0 0 20px rgba(217,123,43,0.3); }
+    50%       { box-shadow: 0 0 40px rgba(217,123,43,0.55); }
+  }
+  @keyframes gradient-shift {
+    0%   { background-position: 0% 50%; }
+    50%  { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+  }
+
+  .animate-float         { animation: float 4.5s ease-in-out infinite; }
+  .animate-float-delayed { animation: float-delayed 5.5s ease-in-out infinite 1.2s; }
+  .animate-fade-in       { animation: fadeIn 0.55s ease-out both; }
+  .animate-slide-up      { animation: slideUp 0.55s ease-out both; }
+  .animate-pulse-glow    { animation: pulse-glow 2.5s ease-in-out infinite; }
+  .animate-gradient      { background-size: 200% 200%; animation: gradient-shift 5s ease infinite; }
+  .shimmer { background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.12) 50%, transparent 100%); background-size: 200% auto; animation: shimmer 3s linear infinite; }
+
+  /* ── Card hover ───────────────────────────────────────────────────── */
+  .card-hover { transition: transform 0.25s ease, box-shadow 0.25s ease; }
+  .card-hover:hover { transform: translateY(-2px); box-shadow: 0 20px 48px rgba(13,26,51,0.10); }
+
+  /* ── Noise texture ────────────────────────────────────────────────── */
+  .noise-overlay::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.025'/%3E%3C/svg%3E");
+    pointer-events: none;
+    z-index: 0;
+  }
+}
