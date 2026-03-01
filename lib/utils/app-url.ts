@@ -19,31 +19,35 @@ function getConfiguredAppUrl(): string | null {
 }
 
 export function getBrowserAppUrl(): string {
-  const configured = getConfiguredAppUrl()
-  if (configured) {
-    return configured
-  }
-
   if (typeof window !== 'undefined') {
     return window.location.origin
   }
 
-  return 'https://tailorpal.vercel.app'
-}
-
-export function getRequestAppUrl(request: RequestLike): string {
   const configured = getConfiguredAppUrl()
   if (configured) {
     return configured
   }
 
+  return 'http://localhost:3000'
+}
+
+export function getRequestAppUrl(request: RequestLike): string {
   const forwardedHost = request.headers.get('x-forwarded-host')
   if (forwardedHost) {
     const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
     return `${forwardedProto}://${forwardedHost}`
   }
 
-  return request.nextUrl.origin
+  if (request.nextUrl.origin) {
+    return request.nextUrl.origin
+  }
+
+  const configured = getConfiguredAppUrl()
+  if (configured) {
+    return configured
+  }
+
+  return 'http://localhost:3000'
 }
 
 export function getSafeNextPath(value: string | null, fallback = '/auth/choose-role'): string {
