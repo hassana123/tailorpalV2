@@ -28,7 +28,7 @@ export function getBrowserAppUrl(): string {
     return window.location.origin
   }
 
-  return 'http://localhost:3000'
+  return 'https://tailorpal.vercel.app'
 }
 
 export function getRequestAppUrl(request: RequestLike): string {
