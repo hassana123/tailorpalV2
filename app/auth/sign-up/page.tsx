@@ -1,6 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { getBrowserAppUrl } from '@/lib/utils/app-url'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -79,9 +80,8 @@ export default function SignUpPage() {
         email,
         password,
         options: {
-          emailRedirectTo:
-            process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            `${window.location.origin}/protected`,
+          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
+            new URL('/protected', getBrowserAppUrl()).toString(),
         },
       })
       if (error) throw error
@@ -101,7 +101,7 @@ export default function SignUpPage() {
     setGoogleLoading(true)
     setError(null)
     try {
-      const redirectUrl = new URL('/auth/callback', window.location.origin)
+      const redirectUrl = new URL('/auth/callback', getBrowserAppUrl())
       redirectUrl.searchParams.set('next', '/auth/choose-role')
 
       const { error } = await supabase.auth.signInWithOAuth({

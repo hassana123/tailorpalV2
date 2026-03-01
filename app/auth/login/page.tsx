@@ -2,6 +2,7 @@
 
 import { createClient } from '@/lib/supabase/client'
 import { requiresRoleSelection } from '@/lib/auth/role'
+import { getBrowserAppUrl } from '@/lib/utils/app-url'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -61,7 +62,7 @@ export default function LoginPage() {
     setGoogleLoading(true)
     setError(null)
     try {
-      const redirectUrl = new URL('/auth/callback', window.location.origin)
+      const redirectUrl = new URL('/auth/callback', getBrowserAppUrl())
       const { error } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: { redirectTo: redirectUrl.toString() },

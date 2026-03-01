@@ -2,12 +2,14 @@ import { createServerClient } from '@supabase/ssr'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { requiresRoleSelection } from '@/lib/auth/role'
+import { getRequestAppUrl, getSafeNextPath } from '@/lib/utils/app-url'
 
 export async function GET(request: NextRequest) {
-  const { searchParams, origin } = new URL(request.url)
+  const { searchParams } = new URL(request.url)
+  const appUrl = getRequestAppUrl(request)
   const code = searchParams.get('code')
   // 'next' lets us redirect to a specific page after auth (e.g. /auth/choose-role)
-  const next = searchParams.get('next') ?? '/auth/choose-role'
+  const next = getSafeNextPath(searchParams.get('next'))
 
   if (code) {
     const cookieStore = await cookies()
@@ -48,22 +50,22 @@ export async function GET(request: NextRequest) {
 
         if (!requiresRoleSelection(profile)) {
           if (profile?.user_type === 'shop_owner') {
-            return NextResponse.redirect(`${origin}/dashboard/shop`)
+            return NextResponse.redirect(new URL('/dashboard/shop', appUrl))
           }
           if (profile?.user_type === 'staff') {
-            return NextResponse.redirect(`${origin}/dashboard/staff`)
+            return NextResponse.redirect(new URL('/dashboard/staff', appUrl))
           }
           if (profile?.user_type === 'customer') {
-            return NextResponse.redirect(`${origin}/marketplace`)
+            return NextResponse.redirect(new URL('/marketplace', appUrl))
           }
         }
       }
 
       // No role yet — send to choose-role
-      return NextResponse.redirect(`${origin}${next}`)
+      return NextResponse.redirect(new URL(next, appUrl))
     }
   }
 
   // Auth failed — redirect to error page
-  return NextResponse.redirect(`${origin}/auth/error?error=auth_callback_failed`)
+  return NextResponse.redirect(new URL('/auth/error?error=auth_callback_failed', appUrl))
 }
