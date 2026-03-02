@@ -1,106 +1,77 @@
-'use client'
-/* eslint-disable @next/next/no-img-element */
+// app/shop-setup/page.tsx
+"use client";
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
-import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Input } from '@/components/ui/input'
-import { Label } from '@/components/ui/label'
-import { Textarea } from '@/components/ui/textarea'
-import { toast } from 'sonner'
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+import { createClient } from "@/lib/supabase/client";
+import { Button } from "@/components/ui/button";
+import { toast } from "sonner";
+import { ChevronRight, ChevronLeft, Check, Badge } from "lucide-react";
+
+// Sub-components
+import { ImageUploadField } from "@/components/dashboard/shop/setup/ImageUploadFeild";
+import { ShopReview } from "@/components/dashboard/shop/setup/ShopReview";
+import { LocationHierarchyFields } from "@/components/location/LocationHierarchyFields";
 import {
   LocationAutocomplete,
   type LocationSuggestion,
-} from '@/components/location/LocationAutocomplete'
-import { LocationHierarchyFields } from '@/components/location/LocationHierarchyFields'
-import { uploadShopMedia } from '@/lib/utils/shop-media'
+} from "@/components/location/LocationAutocomplete";
+import { uploadShopMedia } from "@/lib/utils/shop-media";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 
 export default function ShopSetupPage() {
-  const [supabase] = useState(() => createClient())
+  const [step, setStep] = useState(1);
+  const [supabase] = useState(() => createClient());
+  const [isLoading, setIsLoading] = useState(false);
+  const [logoUploading, setLogoUploading] = useState(false);
+  const [bannerUploading, setBannerUploading] = useState(false);
+  const router = useRouter();
+
   const [formData, setFormData] = useState({
-    name: '',
-    email: '',
-    phone: '',
-    address: '',
-    city: '',
-    state: '',
-    country: '',
-    description: '',
-    logoUrl: '',
-    bannerUrl: '',
+    name: "",
+    email: "",
+    phone: "",
+    address: "",
+    city: "",
+    state: "",
+    country: "",
+    description: "",
+    logoUrl: "",
+    bannerUrl: "",
     latitude: null as number | null,
     longitude: null as number | null,
-  })
-  const [isLoading, setIsLoading] = useState(false)
-  const [logoUploading, setLogoUploading] = useState(false)
-  const [bannerUploading, setBannerUploading] = useState(false)
-  const router = useRouter()
+  });
 
+  // Logic handlers kept intact
   const handleChange = (
-    event: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
+    e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>,
   ) => {
-    const { name, value } = event.target
-    setFormData((prev) => ({ ...prev, [name]: value }))
-  }
+    setFormData((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
   const handleImageUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    target: 'logoUrl' | 'bannerUrl',
+    file: File,
+    target: "logoUrl" | "bannerUrl",
   ) => {
-    const file = event.target.files?.[0]
-    if (!file) return
-
-    const setUploading = target === 'logoUrl' ? setLogoUploading : setBannerUploading
-    const uploadFolder = target === 'logoUrl' ? 'logos' : 'banners'
-
+    const setUploading =
+      target === "logoUrl" ? setLogoUploading : setBannerUploading;
     try {
-      setUploading(true)
-      const publicUrl = await uploadShopMedia(supabase, file, uploadFolder)
-      setFormData((prev) => ({ ...prev, [target]: publicUrl }))
-      toast.success(`${target === 'logoUrl' ? 'Logo' : 'Banner'} uploaded`)
+      setUploading(true);
+      const publicUrl = await uploadShopMedia(
+        supabase,
+        file,
+        target === "logoUrl" ? "logos" : "banners",
+      );
+      setFormData((prev) => ({ ...prev, [target]: publicUrl }));
+      toast.success("Image uploaded successfully");
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Upload failed')
+      toast.error("Upload failed");
     } finally {
-      setUploading(false)
-      event.target.value = ''
+      setUploading(false);
     }
-  }
-
-  const handleSubmit = async (event: React.FormEvent) => {
-    event.preventDefault()
-    setIsLoading(true)
-
-    try {
-      const payload = {
-        ...formData,
-        logoUrl: formData.logoUrl.trim() || undefined,
-        bannerUrl: formData.bannerUrl.trim() || undefined,
-        latitude: formData.latitude ?? undefined,
-        longitude: formData.longitude ?? undefined,
-      }
-
-      const response = await fetch('/api/shops', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      })
-
-      if (!response.ok) {
-        const errorData = (await response.json()) as { error?: string }
-        throw new Error(errorData.error || 'Failed to create shop')
-      }
-
-      const { shop } = (await response.json()) as { shop: { id: string } }
-      toast.success('Shop created successfully')
-      router.push(`/dashboard/shop/${shop.id}`)
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'An error occurred')
-    } finally {
-      setIsLoading(false)
-    }
-  }
+  };
 
   const handleLocationSelect = (suggestion: LocationSuggestion) => {
     setFormData((prev) => ({
@@ -108,189 +79,201 @@ export default function ShopSetupPage() {
       address: suggestion.displayName,
       latitude: suggestion.lat,
       longitude: suggestion.lon,
-    }))
-  }
+    }));
+  };
+
+  const handleSubmit = async () => {
+    setIsLoading(true);
+    try {
+      const response = await fetch("/api/shops", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(formData),
+      });
+      if (!response.ok) throw new Error("Failed to create shop");
+      const { shop } = await response.json();
+      toast.success("Your fashion empire starts now!");
+      router.push(`/dashboard/shop/${shop.id}`);
+    } catch (err) {
+      toast.error("Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5 p-6 md:p-10">
-      <div className="mx-auto max-w-2xl">
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-3xl">Set up your shop</CardTitle>
-            <CardDescription>
-              Create your fashion shop profile to get started managing customers and orders
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="grid gap-2">
+    <div className="min-h-screen bg-brand-cream noise-overlay flex flex-col items-center py-6 px-4">
+      <div className="w-full max-w-6xl space-y-5">
+        {/* Progress Header */}
+        <div className="flex flex-col items-center text-center space-y-4">
+          <span className="bg-brand-gold/10 text-brand-gold border-brand-gold/20 hover:bg-brand-gold/10 px-6 py-2 rounded-md">
+            Step {step} of 3
+          </span>
+          <h1 className="text-2xl font-display text-brand-ink">
+            {step === 1 && "The Basics"}
+            {step === 2 && "Visual Identity"}
+            {step === 3 && "Review & Launch"}
+          </h1>
+        </div>
+
+        <div className="bg-white rounded-[2.5rem] p-8 md:p-12 shadow-card border border-brand-border/50">
+          {/* STEP 1: TEXT DETAILS */}
+          {step === 1 && (
+            <div className="grid gap-8 animate-fade-in">
+              <div className="grid md:grid-cols-2 gap-6">
+                <div className="space-y-2">
                   <Label htmlFor="name">Shop Name *</Label>
                   <Input
                     id="name"
                     name="name"
-                    placeholder="My Fashion Shop"
-                    required
                     value={formData.name}
                     onChange={handleChange}
+                    placeholder="e.g. Atelier V"
+                    className="h-12"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="email">Email *</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="email">Business Email *</Label>
                   <Input
                     id="email"
                     name="email"
                     type="email"
-                    placeholder="shop@example.com"
-                    required
                     value={formData.email}
                     onChange={handleChange}
+                    placeholder="hello@atelier.com"
+                    className="h-12"
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                <div className="space-y-2">
+                  <Label htmlFor="phone" className="text-brand-ink font-medium">
+                    Phone Number
+                  </Label>
                   <Input
                     id="phone"
                     name="phone"
-                    placeholder="+1 (555) 000-0000"
+                    type="tel"
                     value={formData.phone}
                     onChange={handleChange}
+                    placeholder="+1 (555) 000-0000"
+                    className="h-12 border-brand-border focus:ring-brand-gold"
                   />
                 </div>
+              </div>
 
+              <div className="space-y-6">
                 <LocationHierarchyFields
                   country={formData.country}
                   state={formData.state}
                   city={formData.city}
-                  onCountryChange={(value) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      country: value,
-                      state: '',
-                      city: '',
-                      address: '',
-                      latitude: null,
-                      longitude: null,
+                  onCountryChange={(v) =>
+                    setFormData((p) => ({
+                      ...p,
+                      country: v,
+                      state: "",
+                      city: "",
+                      address: "",
                     }))
                   }
-                  onStateChange={(value) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      state: value,
-                      city: '',
-                      address: '',
-                      latitude: null,
-                      longitude: null,
+                  onStateChange={(v) =>
+                    setFormData((p) => ({
+                      ...p,
+                      state: v,
+                      city: "",
+                      address: "",
                     }))
                   }
-                  onCityChange={(value) =>
-                    setFormData((prev) => ({
-                      ...prev,
-                      city: value,
-                      address: '',
-                      latitude: null,
-                      longitude: null,
-                    }))
+                  onCityChange={(v) =>
+                    setFormData((p) => ({ ...p, city: v, address: "" }))
                   }
-                  required
                 />
-
-                <div className="grid gap-2 md:col-span-2">
-                  <Label htmlFor="address">Address *</Label>
+                <div className="space-y-2">
+                  <Label>Street Address</Label>
                   <LocationAutocomplete
-                    id="address"
                     value={formData.address}
+                    onValueChange={(v) =>
+                      setFormData((p) => ({ ...p, address: v }))
+                    }
+                    onSelect={handleLocationSelect}
                     country={formData.country}
                     state={formData.state}
                     city={formData.city}
-                    onValueChange={(value) =>
-                      setFormData((prev) => ({
-                        ...prev,
-                        address: value,
-                        latitude: null,
-                        longitude: null,
-                      }))
-                    }
-                    onSelect={handleLocationSelect}
-                    placeholder="Type address and pick from suggestions"
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Select from suggestions to auto-fill a clean address.
-                  </p>
                 </div>
               </div>
+            </div>
+          )}
 
-              <div className="grid gap-2">
-                <Label htmlFor="description">Shop Description</Label>
+          {/* STEP 2: VISUALS */}
+          {step === 2 && (
+            <div className="space-y-8 animate-fade-in">
+              <div className="grid md:grid-cols-3 gap-8 items-start">
+                <ImageUploadField
+                  label="Shop Logo"
+                  value={formData.logoUrl}
+                  isUploading={logoUploading}
+                  onUpload={(file) => handleImageUpload(file, "logoUrl")}
+                  description="Recommended 500x500px"
+                />
+                <div className="md:col-span-2">
+                  <ImageUploadField
+                    label="Banner Image"
+                    value={formData.bannerUrl}
+                    aspectRatio="video"
+                    isUploading={bannerUploading}
+                    onUpload={(file) => handleImageUpload(file, "bannerUrl")}
+                    description="This will appear at the top of your shop profile"
+                  />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="description">Shop Story</Label>
                 <Textarea
                   id="description"
                   name="description"
-                  placeholder="Tell customers about your shop..."
-                  rows={4}
                   value={formData.description}
                   onChange={handleChange}
+                  placeholder="Describe your aesthetic..."
+                  rows={5}
+                  className="resize-none"
                 />
               </div>
+            </div>
+          )}
 
-              <div className="grid gap-6 md:grid-cols-2">
-                <div className="grid gap-2">
-                  <Label htmlFor="logoUpload">Shop Logo</Label>
-                  {formData.logoUrl ? (
-                    <img
-                      src={formData.logoUrl}
-                      alt="Shop logo preview"
-                      className="h-20 w-20 rounded-lg object-cover border"
-                    />
-                  ) : (
-                    <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">
-                      No logo
-                    </div>
-                  )}
-                  <Input
-                    id="logoUpload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => handleImageUpload(event, 'logoUrl')}
-                    disabled={logoUploading || isLoading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {logoUploading ? 'Uploading...' : 'PNG/JPG/WebP up to 5MB'}
-                  </p>
-                </div>
+          {/* STEP 3: REVIEW */}
+          {step === 3 && <ShopReview formData={formData} />}
 
-                <div className="grid gap-2">
-                  <Label htmlFor="bannerUpload">Banner Image</Label>
-                  {formData.bannerUrl ? (
-                    <img
-                      src={formData.bannerUrl}
-                      alt="Shop banner preview"
-                      className="h-20 w-full rounded-lg object-cover border"
-                    />
-                  ) : (
-                    <div className="h-20 w-full rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">
-                      No banner
-                    </div>
-                  )}
-                  <Input
-                    id="bannerUpload"
-                    type="file"
-                    accept="image/*"
-                    onChange={(event) => handleImageUpload(event, 'bannerUrl')}
-                    disabled={bannerUploading || isLoading}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {bannerUploading ? 'Uploading...' : 'PNG/JPG/WebP up to 5MB'}
-                  </p>
-                </div>
-              </div>
+          {/* NAVIGATION BUTTONS */}
+          <div className="mt-12 pt-8 border-t border-brand-border flex justify-between">
+            <Button
+              variant="ghost"
+              onClick={() => setStep((s) => s - 1)}
+              disabled={step === 1}
+              className="text-brand-stone hover:text-brand-ink"
+            >
+              <ChevronLeft className="mr-2 h-4 w-4" /> Back
+            </Button>
 
-              <Button type="submit" disabled={isLoading || logoUploading || bannerUploading} className="w-full">
-                {isLoading ? 'Creating shop...' : 'Create Shop'}
+            {step < 3 ? (
+              <Button
+                onClick={() => setStep((s) => s + 1)}
+                className="bg-brand-ink hover:bg-brand-charcoal text-white px-8 rounded-full h-12"
+              >
+                Continue <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
-            </form>
-          </CardContent>
-        </Card>
+            ) : (
+              <Button
+                onClick={handleSubmit}
+                disabled={isLoading}
+                className="bg-brand-gold hover:opacity-90 text-white px-10 rounded-full h-12 shadow-gold animate-pulse-glow"
+              >
+                {isLoading ? "Creating..." : "Confirm & Launch"}{" "}
+                <Check className="ml-2 h-4 w-4" />
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
     </div>
-  )
+  );
 }
