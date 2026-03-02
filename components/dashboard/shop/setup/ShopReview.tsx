@@ -1,7 +1,7 @@
 // components/shop-setup/ShopReview.tsx
 import { Card, CardContent } from '@/components/ui/card'
 //import { Badge } from '@/components/ui/badge'
-import { MapPin, Mail, Phone, Store } from 'lucide-react'
+import { MapPin, Mail, Phone } from 'lucide-react'
 
 export function ShopReview({ formData }: { formData: any }) {
   return (

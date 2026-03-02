@@ -19,7 +19,6 @@ const MAIN_NAV_LABELS  = ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Measur
 const OTHER_NAV_LABELS = ['Staff', 'Settings']
 
 export function DashboardSidebar({
-  title,
   sidebarOpen,
   onToggleSidebar,
   navItems,

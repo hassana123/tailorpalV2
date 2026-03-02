@@ -127,6 +127,7 @@ export default function StaffLayout({ children }: { children: ReactNode }) {
       <div className="flex h-screen overflow-hidden bg-background">
         <DashboardSidebar
           title="TailorPal"
+          onLogout={handleLogout}
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen((prev) => !prev)}
           navItems={navItems}

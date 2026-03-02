@@ -1,6 +1,6 @@
 'use client'
 
-import { Search, Bell, ChevronDown, User, Menu } from 'lucide-react'
+import { Search, Bell, ChevronDown, Menu } from 'lucide-react'
 import { useState } from 'react'
 
 interface DashboardHeaderProps {
@@ -19,7 +19,6 @@ export function DashboardHeader({
   firstName,
   lastName,
   onOpenProfile,
-  onLogout,
   onMenuClick,
 }: DashboardHeaderProps) {
   const [searchFocused, setSearchFocused] = useState(false)

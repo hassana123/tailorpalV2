@@ -26,6 +26,7 @@ out
 
 # Supabase
 supabase/migrations/
+supabase/sql/
 
 # Custom scripts
 

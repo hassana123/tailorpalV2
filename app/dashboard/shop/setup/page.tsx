@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ChevronRight, ChevronLeft, Check, Badge } from "lucide-react";
+import { ChevronRight, ChevronLeft, Check } from "lucide-react";
 
 // Sub-components
 import { ImageUploadField } from "@/components/dashboard/shop/setup/ImageUploadFeild";

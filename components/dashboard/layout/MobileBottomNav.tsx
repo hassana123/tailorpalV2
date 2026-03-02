@@ -16,7 +16,6 @@ export function MobileBottomNav({
   items, 
   moreItems, 
   isItemActive,
-  onMoreClick 
 }: MobileBottomNavProps) {
   const [showMoreMenu, setShowMoreMenu] = useState(false)
 
