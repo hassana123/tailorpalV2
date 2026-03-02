@@ -19,7 +19,14 @@ import {
   ExternalLink,
   Mail,
   Phone,
+  Tag,
+  ImageIcon,
+  ShoppingBag,
+  User,
 } from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+// ─── Types (unchanged) ────────────────────────────────────────────────────────
 
 interface Shop {
   id: string
@@ -64,6 +71,8 @@ interface ShopProfileContentProps {
   compactTop?: boolean
 }
 
+// ─── Star Picker (logic unchanged) ───────────────────────────────────────────
+
 function StarPicker({ value, onChange }: { value: number; onChange: (n: number) => void }) {
   const [hovered, setHovered] = useState(0)
   return (
@@ -87,37 +96,54 @@ function StarPicker({ value, onChange }: { value: number; onChange: (n: number) 
   )
 }
 
+// ─── Review Card ──────────────────────────────────────────────────────────────
+
 function ReviewCard({ review }: { review: Review }) {
   return (
-    <div className="py-6 border-b border-brand-border last:border-0">
-      <div className="flex items-center gap-3 mb-3">
-        <div className="w-8 h-8 rounded-full bg-brand-ink text-white flex items-center justify-center text-xs font-bold">
-          C
+    <div className="py-5 border-b border-brand-border last:border-0">
+      <div className="flex items-start gap-3 mb-2">
+        <div className="w-9 h-9 rounded-full bg-brand-ink text-white flex items-center justify-center text-xs font-bold flex-shrink-0">
+          <User size={14} />
         </div>
-        <div>
-          <div className="flex gap-0.5 mb-0.5">
-            {[...Array(5)].map((_, i) => (
-              <Star
-                key={i}
-                size={11}
-                className={i < review.rating ? 'text-brand-gold fill-brand-gold' : 'text-brand-border'}
-              />
-            ))}
+        <div className="flex-1">
+          <div className="flex items-center justify-between mb-1">
+            <div className="flex gap-0.5">
+              {[...Array(5)].map((_, i) => (
+                <Star
+                  key={i}
+                  size={12}
+                  className={i < review.rating ? 'text-brand-gold fill-brand-gold' : 'text-brand-border'}
+                />
+              ))}
+            </div>
+            <p className="text-[10px] text-brand-stone flex items-center gap-1">
+              <Clock size={9} />
+              {new Date(review.created_at).toLocaleDateString('en-GB', {
+                day: 'numeric',
+                month: 'short',
+                year: 'numeric',
+              })}
+            </p>
           </div>
-          <p className="text-xs text-brand-stone flex items-center gap-1">
-            <Clock size={10} />
-            {new Date(review.created_at).toLocaleDateString('en-GB', {
-              day: 'numeric',
-              month: 'short',
-              year: 'numeric',
-            })}
-          </p>
+          <p className="text-sm text-brand-charcoal leading-relaxed">{review.comment}</p>
         </div>
       </div>
-      <p className="text-sm text-brand-charcoal leading-relaxed">{review.comment}</p>
     </div>
   )
 }
+
+// ─── Section Header ───────────────────────────────────────────────────────────
+
+function SectionHeader({ eyebrow, title }: { eyebrow: string; title: string }) {
+  return (
+    <div className="mb-5">
+      <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">{eyebrow}</p>
+      <h2 className="font-display text-xl text-brand-ink">{title}</h2>
+    </div>
+  )
+}
+
+// ─── Main Component ───────────────────────────────────────────────────────────
 
 export function ShopProfileContent({
   shopId,
@@ -128,6 +154,8 @@ export function ShopProfileContent({
 }: ShopProfileContentProps) {
   const router = useRouter()
   const supabase = createClient()
+
+  // ─── State (all logic unchanged) ──────────────────────────────────────
 
   const [shop, setShop] = useState<Shop | null>(null)
   const [reviews, setReviews] = useState<Review[]>([])
@@ -157,15 +185,15 @@ export function ShopProfileContent({
 
   const mapUrl = useMemo(() => {
     if (!shop) return null
-
     if (typeof shop.latitude === 'number' && typeof shop.longitude === 'number') {
       return `https://www.google.com/maps/search/?api=1&query=${shop.latitude},${shop.longitude}`
     }
-
     const query = [shop.address, shop.city, shop.state, shop.country].filter(Boolean).join(', ')
     if (!query) return null
     return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(query)}`
   }, [shop])
+
+  // ─── Data fetching (all logic unchanged) ──────────────────────────────
 
   const fetchShop = async () => {
     try {
@@ -185,21 +213,17 @@ export function ShopProfileContent({
           .eq('is_active', true)
           .order('created_at', { ascending: false }),
       ])
-
       if (shopRes.error) throw shopRes.error
       setIsAuthenticated(Boolean(authRes.data.user))
-
       const nextShop = shopRes.data as Shop
       const nextReviews = (reviewsRes.data ?? []) as Review[]
       const nextCatalog = catalogRes.error ? [] : ((catalogRes.data ?? []) as CatalogItem[])
-
       setShop(nextShop)
       setReviews(nextReviews)
       setCatalogItems(nextCatalog)
       setSelectedCatalogItemId(nextCatalog[0]?.id ?? '')
-
       if (nextReviews.length > 0) {
-        const avg = nextReviews.reduce((sum, review) => sum + review.rating, 0) / nextReviews.length
+        const avg = nextReviews.reduce((sum, r) => sum + r.rating, 0) / nextReviews.length
         setAvgRating(Number(avg.toFixed(1)))
       } else {
         setAvgRating(null)
@@ -214,29 +238,15 @@ export function ShopProfileContent({
   }
 
   const submitReview = async () => {
-    if (!comment.trim()) {
-      toast.error('Please write a review comment.')
-      return
-    }
-
+    if (!comment.trim()) { toast.error('Please write a review comment.'); return }
     setSubmittingReview(true)
     try {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-
-      if (!user) {
-        toast.error('Please sign in to leave a review.')
-        router.push(loginPath)
-        return
-      }
-
-      const { error: insertError } = await supabase.from('shop_ratings').insert([
-        { shop_id: shopId, user_id: user.id, rating, comment },
-      ])
-
+      const { data: { user } } = await supabase.auth.getUser()
+      if (!user) { toast.error('Please sign in to leave a review.'); router.push(loginPath); return }
+      const { error: insertError } = await supabase
+        .from('shop_ratings')
+        .insert([{ shop_id: shopId, user_id: user.id, rating, comment }])
       if (insertError) throw insertError
-
       setComment('')
       setRating(5)
       setSubmittedReview(true)
@@ -251,19 +261,12 @@ export function ShopProfileContent({
   }
 
   const submitCatalogOrderRequest = async () => {
-    if (!selectedCatalogItemId) {
-      toast.error('Please choose a catalog item.')
-      return
-    }
-    if (!orderRequest.requesterName.trim()) {
-      toast.error('Please enter your name.')
-      return
-    }
+    if (!selectedCatalogItemId) { toast.error('Please choose a catalog item.'); return }
+    if (!orderRequest.requesterName.trim()) { toast.error('Please enter your name.'); return }
     if (!orderRequest.requesterEmail.trim() && !orderRequest.requesterPhone.trim()) {
       toast.error('Please add email or phone.')
       return
     }
-
     try {
       setSubmittingRequest(true)
       const response = await fetch('/api/catalog/order-request', {
@@ -278,18 +281,11 @@ export function ShopProfileContent({
           notes: orderRequest.notes.trim() || undefined,
         }),
       })
-
       if (!response.ok) {
         const payload = (await response.json()) as { error?: string }
         throw new Error(payload.error || 'Failed to create request')
       }
-
-      setOrderRequest({
-        requesterName: '',
-        requesterEmail: '',
-        requesterPhone: '',
-        notes: '',
-      })
+      setOrderRequest({ requesterName: '', requesterEmail: '', requesterPhone: '', notes: '' })
       toast.success('Order request sent to shop owner')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to submit order request')
@@ -298,10 +294,12 @@ export function ShopProfileContent({
     }
   }
 
+  // ─── Loading / Error states ────────────────────────────────────────────
+
   if (loading) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center">
-        <Loader2 size={32} className="text-brand-stone animate-spin" />
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-ink" />
       </div>
     )
   }
@@ -309,14 +307,16 @@ export function ShopProfileContent({
   if (!shop) {
     return (
       <div className="max-w-xl mx-auto px-5 py-24 text-center">
-        <AlertCircle size={40} className="text-red-400 mx-auto mb-4" />
+        <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center mx-auto mb-5">
+          <AlertCircle size={28} className="text-red-400" />
+        </div>
         <h1 className="font-display text-2xl text-brand-ink mb-2">Shop not found</h1>
         <p className="text-brand-stone text-sm mb-6">
           This shop may have been removed or the link is incorrect.
         </p>
         <Link
           href={backHref}
-          className="inline-flex h-10 px-6 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-charcoal transition-all items-center gap-2 mx-auto"
+          className="inline-flex h-10 px-6 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-charcoal transition-all items-center gap-2"
         >
           <ArrowLeft size={14} />
           Back to marketplace
@@ -327,6 +327,8 @@ export function ShopProfileContent({
 
   return (
     <div className="min-h-screen bg-brand-cream">
+
+      {/* ── Hero banner ─────────────────────────────────────────────────── */}
       <section className={`relative ${compactTop ? 'pt-10' : 'pt-24'} pb-14 overflow-hidden`}>
         <div className="absolute inset-0 gradient-hero" />
         {shop.banner_url && (
@@ -363,7 +365,7 @@ export function ShopProfileContent({
                 {shop.name[0]}
               </div>
             )}
-            <div className="flex-1">
+            <div>
               <h1 className="font-display text-3xl sm:text-4xl text-white mb-1">{shop.name}</h1>
               <div className="flex items-center gap-3 flex-wrap">
                 {avgRating ? (
@@ -391,47 +393,47 @@ export function ShopProfileContent({
         </div>
       </section>
 
-      <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 py-12">
+      {/* ── Main content ────────────────────────────────────────────────── */}
+      <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10 py-8 space-y-0">
+
         {error && (
-          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100 mb-8">
+          <div className="flex items-center gap-3 p-4 rounded-xl bg-red-50 border border-red-100 mb-6">
             <AlertCircle size={16} className="text-red-500 flex-shrink-0" />
             <p className="text-sm text-red-700 font-medium">{error}</p>
           </div>
         )}
 
-        <div className="grid lg:grid-cols-3 gap-8">
-          <div className="lg:col-span-2 space-y-7">
-            <div className="bg-white rounded-2xl border border-brand-border p-7">
-              <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-3">
-                About this shop
-              </p>
+        <div className="grid lg:grid-cols-3 gap-6">
+
+          {/* ── Left / main column ──────────────────────────────────────── */}
+          <div className="lg:col-span-2 space-y-5">
+
+            {/* About */}
+            <div className="bg-white rounded-2xl border border-brand-border p-6">
+              <SectionHeader eyebrow="About this shop" title={shop.name} />
               <p className="text-brand-charcoal text-sm leading-relaxed">
                 {shop.description || 'No description provided yet.'}
               </p>
             </div>
 
-            <div className="bg-white rounded-2xl border border-brand-border p-7">
-              <div className="mb-5">
-                <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">
-                  Shop details
-                </p>
-                <h2 className="font-display text-xl text-brand-ink">Location and contact</h2>
-              </div>
-              <div className="space-y-2 text-sm text-brand-charcoal">
-                <p className="flex items-center gap-2">
-                  <MapPin size={14} className="text-brand-gold" />
+            {/* Location & contact */}
+            <div className="bg-white rounded-2xl border border-brand-border p-6">
+              <SectionHeader eyebrow="Shop details" title="Location and contact" />
+              <div className="space-y-2.5 text-sm text-brand-charcoal">
+                <p className="flex items-center gap-2.5">
+                  <MapPin size={14} className="text-brand-gold flex-shrink-0" />
                   {[shop.address, shop.city, shop.state, shop.country].filter(Boolean).join(', ') ||
                     'Location not provided'}
                 </p>
                 {shop.email && (
-                  <p className="flex items-center gap-2">
-                    <Mail size={14} className="text-brand-gold" />
+                  <p className="flex items-center gap-2.5">
+                    <Mail size={14} className="text-brand-gold flex-shrink-0" />
                     {shop.email}
                   </p>
                 )}
                 {shop.phone && (
-                  <p className="flex items-center gap-2">
-                    <Phone size={14} className="text-brand-gold" />
+                  <p className="flex items-center gap-2.5">
+                    <Phone size={14} className="text-brand-gold flex-shrink-0" />
                     {shop.phone}
                   </p>
                 )}
@@ -441,7 +443,7 @@ export function ShopProfileContent({
                   href={mapUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 mt-4 rounded-lg border border-brand-border px-4 py-2 text-xs font-semibold text-brand-ink hover:bg-brand-cream transition-colors"
+                  className="inline-flex items-center gap-2 mt-5 rounded-xl border border-brand-border px-4 py-2 text-xs font-semibold text-brand-ink hover:bg-brand-cream transition-colors"
                 >
                   Open in Google Maps
                   <ExternalLink size={12} />
@@ -449,77 +451,100 @@ export function ShopProfileContent({
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-brand-border p-7">
-              <div className="mb-6">
-                <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">
-                  Catalog
-                </p>
-                <h2 className="font-display text-xl text-brand-ink">
-                  {catalogItems.length} Item{catalogItems.length !== 1 ? 's' : ''}
-                </h2>
-              </div>
+            {/* Catalog */}
+            <div className="bg-white rounded-2xl border border-brand-border p-6">
+              <SectionHeader
+                eyebrow="Catalog"
+                title={`${catalogItems.length} Item${catalogItems.length !== 1 ? 's' : ''}`}
+              />
               {catalogItems.length === 0 ? (
-                <p className="text-brand-stone text-sm">
-                  This shop has not added catalog items yet.
-                </p>
+                <div className="text-center py-10 rounded-xl border border-dashed border-brand-border bg-brand-cream/30">
+                  <Tag size={28} className="text-brand-border mx-auto mb-3" />
+                  <p className="text-brand-stone text-sm">
+                    This shop has not added catalog items yet.
+                  </p>
+                </div>
               ) : (
                 <div className="grid sm:grid-cols-2 gap-4">
                   {catalogItems.map((item) => (
-                    <div key={item.id} className="border border-brand-border rounded-xl p-4 bg-brand-cream/40">
-                      {item.image_url && (
+                    <div
+                      key={item.id}
+                      className={cn(
+                        'border rounded-2xl overflow-hidden transition-all cursor-pointer',
+                        selectedCatalogItemId === item.id
+                          ? 'border-brand-gold ring-2 ring-brand-gold/20'
+                          : 'border-brand-border hover:border-brand-gold/50',
+                      )}
+                    >
+                      {item.image_url ? (
                         <img
                           src={item.image_url}
                           alt={item.name}
-                          className="w-full h-36 rounded-lg object-cover mb-3"
+                          className="w-full h-36 object-cover"
                         />
+                      ) : (
+                        <div className="w-full h-36 bg-brand-cream/60 flex items-center justify-center">
+                          <ImageIcon size={24} className="text-brand-border" />
+                        </div>
                       )}
-                      <p className="font-semibold text-brand-ink">{item.name}</p>
-                      <p className="text-sm text-brand-stone mt-1">{item.description || 'No description provided.'}</p>
-                      <p className="mt-3 text-sm font-semibold text-brand-charcoal">
-                        ${item.price.toFixed(2)}
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => setSelectedCatalogItemId(item.id)}
-                        className={`mt-3 w-full rounded-lg border px-3 py-2 text-xs font-semibold transition-colors ${
-                          selectedCatalogItemId === item.id
-                            ? 'bg-brand-ink text-white border-brand-ink'
-                            : 'bg-white text-brand-ink border-brand-border hover:bg-brand-cream'
-                        }`}
-                      >
-                        {selectedCatalogItemId === item.id ? 'Selected for order' : 'Order this item'}
-                      </button>
+                      <div className="p-4">
+                        <div className="flex items-start justify-between gap-2 mb-1">
+                          <p className="font-semibold text-brand-ink text-sm">{item.name}</p>
+                          <p className="text-sm font-bold text-brand-gold whitespace-nowrap">
+                            ${item.price.toFixed(2)}
+                          </p>
+                        </div>
+                        {item.description && (
+                          <p className="text-xs text-brand-stone line-clamp-2 leading-relaxed">
+                            {item.description}
+                          </p>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setSelectedCatalogItemId(item.id)}
+                          className={cn(
+                            'mt-3 w-full rounded-xl border px-3 py-2 text-xs font-semibold transition-colors',
+                            selectedCatalogItemId === item.id
+                              ? 'bg-brand-ink text-white border-brand-ink'
+                              : 'bg-white text-brand-ink border-brand-border hover:bg-brand-cream',
+                          )}
+                        >
+                          {selectedCatalogItemId === item.id ? '✓ Selected for order' : 'Order this item'}
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-brand-border p-7">
-              <div className="flex items-center justify-between mb-6">
-                <div>
-                  <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">
-                    Customer reviews
-                  </p>
-                  <h2 className="font-display text-xl text-brand-ink">
-                    {reviews.length > 0 ? `${reviews.length} Review${reviews.length !== 1 ? 's' : ''}` : 'No reviews yet'}
-                  </h2>
-                </div>
+            {/* Reviews */}
+            <div className="bg-white rounded-2xl border border-brand-border p-6">
+              <div className="flex items-start justify-between mb-6">
+                <SectionHeader
+                  eyebrow="Customer reviews"
+                  title={reviews.length > 0 ? `${reviews.length} Review${reviews.length !== 1 ? 's' : ''}` : 'No reviews yet'}
+                />
                 {avgRating && (
-                  <div className="text-right">
-                    <div className="font-display text-4xl text-brand-ink">{avgRating}</div>
-                    <div className="flex gap-0.5 justify-end mt-0.5">
+                  <div className="text-right flex-shrink-0">
+                    <div className="font-display text-4xl text-brand-ink leading-none">{avgRating}</div>
+                    <div className="flex gap-0.5 justify-end mt-1">
                       {[...Array(5)].map((_, i) => (
-                        <Star key={i} size={10} className={i < Math.floor(avgRating) ? 'text-brand-gold fill-brand-gold' : 'text-brand-border'} />
+                        <Star
+                          key={i}
+                          size={10}
+                          className={i < Math.floor(avgRating) ? 'text-brand-gold fill-brand-gold' : 'text-brand-border'}
+                        />
                       ))}
                     </div>
+                    <p className="text-[10px] text-brand-stone mt-0.5">{reviews.length} reviews</p>
                   </div>
                 )}
               </div>
 
               {reviews.length === 0 ? (
-                <div className="text-center py-10">
-                  <MessageSquare size={32} className="text-brand-border mx-auto mb-3" />
+                <div className="text-center py-10 rounded-xl border border-dashed border-brand-border bg-brand-cream/30">
+                  <MessageSquare size={28} className="text-brand-border mx-auto mb-3" />
                   <p className="text-brand-stone text-sm">Be the first to review this shop!</p>
                 </div>
               ) : (
@@ -530,17 +555,24 @@ export function ShopProfileContent({
             </div>
           </div>
 
-          <div className="space-y-6 lg:sticky lg:top-24 lg:self-start h-fit">
-            <div className="bg-white rounded-2xl border border-brand-border p-6">
+          {/* ── Right sidebar ────────────────────────────────────────────── */}
+          <div className="space-y-5 lg:sticky lg:top-24 lg:self-start h-fit">
+
+            {/* Leave a review */}
+            <div className="bg-white rounded-2xl border border-brand-border p-5">
               <div className="flex items-center gap-2 mb-5">
-                <MessageSquare size={16} className="text-brand-gold" />
-                <h3 className="font-sans font-bold text-brand-ink text-sm">Leave a review</h3>
+                <div className="w-8 h-8 rounded-xl bg-brand-cream flex items-center justify-center">
+                  <MessageSquare size={14} className="text-brand-gold" />
+                </div>
+                <h3 className="font-display text-base text-brand-ink">Leave a review</h3>
               </div>
 
               {submittedReview ? (
                 <div className="flex flex-col items-center py-6 text-center">
-                  <CheckCircle2 size={36} className="text-brand-sage mb-3" />
-                  <p className="font-semibold text-brand-ink text-sm mb-1">Review submitted</p>
+                  <div className="w-12 h-12 rounded-2xl bg-emerald-50 flex items-center justify-center mx-auto mb-3">
+                    <CheckCircle2 size={24} className="text-emerald-500" />
+                  </div>
+                  <p className="font-semibold text-brand-ink text-sm mb-1">Review submitted!</p>
                   <p className="text-brand-stone text-xs">Thank you for your feedback.</p>
                 </div>
               ) : !isAuthenticated ? (
@@ -551,124 +583,114 @@ export function ShopProfileContent({
                   </p>
                   <Link
                     href={loginPath}
-                    className="inline-flex items-center gap-2 rounded-lg bg-brand-ink px-3 py-2 text-xs font-semibold text-white hover:bg-brand-charcoal transition-colors"
+                    className="inline-flex items-center gap-2 rounded-xl bg-brand-ink px-4 py-2 text-xs font-semibold text-white hover:bg-brand-charcoal transition-colors"
                   >
-                    <Send size={12} />
+                    <Send size={11} />
                     Sign in to review
                   </Link>
                 </div>
               ) : (
-                <div className="space-y-5">
+                <div className="space-y-4">
                   <div>
-                    <label className="text-xs font-semibold text-brand-charcoal uppercase tracking-wider block mb-2.5">
+                    <label className="text-[10px] font-bold text-brand-stone uppercase tracking-wider block mb-2">
                       Your rating
                     </label>
                     <StarPicker value={rating} onChange={setRating} />
                   </div>
-
                   <div>
-                    <label className="text-xs font-semibold text-brand-charcoal uppercase tracking-wider block mb-2.5">
+                    <label className="text-[10px] font-bold text-brand-stone uppercase tracking-wider block mb-2">
                       Your review
                     </label>
                     <textarea
                       placeholder="Share your experience with this shop..."
                       value={comment}
-                      onChange={(event) => setComment(event.target.value)}
-                      rows={5}
-                      className="w-full px-4 py-3 rounded-xl border border-brand-border bg-brand-cream text-sm text-brand-charcoal placeholder:text-brand-stone resize-none focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold transition-all"
+                      onChange={(e) => setComment(e.target.value)}
+                      rows={4}
+                      className="w-full px-3 py-2.5 rounded-xl border border-brand-border bg-brand-cream/50 text-sm text-brand-charcoal placeholder:text-brand-stone resize-none focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold transition-all"
                     />
                   </div>
-
                   <button
                     onClick={submitReview}
                     disabled={submittingReview || !comment.trim()}
-                    className="w-full h-11 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-charcoal transition-all shadow-brand flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="w-full h-10 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-charcoal transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     {submittingReview ? (
-                      <>
-                        <Loader2 size={14} className="animate-spin" /> Submitting...
-                      </>
+                      <><Loader2 size={13} className="animate-spin" /> Submitting…</>
                     ) : (
-                      <>
-                        <Send size={14} /> Submit review
-                      </>
+                      <><Send size={13} /> Submit review</>
                     )}
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="bg-white rounded-2xl border border-brand-border p-6">
-              <h3 className="font-sans font-bold text-brand-ink text-sm mb-4">Order from catalog</h3>
+            {/* Order from catalog */}
+            <div className="bg-white rounded-2xl border border-brand-border p-5">
+              <div className="flex items-center gap-2 mb-5">
+                <div className="w-8 h-8 rounded-xl bg-brand-cream flex items-center justify-center">
+                  <ShoppingBag size={14} className="text-brand-gold" />
+                </div>
+                <h3 className="font-display text-base text-brand-ink">Order from catalog</h3>
+              </div>
+
               <div className="space-y-3">
+                {/* Catalog item select */}
                 <div>
-                  <label className="text-xs font-semibold text-brand-charcoal uppercase tracking-wider block mb-2">
+                  <label className="text-[10px] font-bold text-brand-stone uppercase tracking-wider block mb-1.5">
                     Catalog item
                   </label>
                   <select
                     value={selectedCatalogItemId}
-                    onChange={(event) => setSelectedCatalogItemId(event.target.value)}
-                    className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
+                    onChange={(e) => setSelectedCatalogItemId(e.target.value)}
+                    className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold transition-all appearance-none"
                   >
                     <option value="">Choose an item</option>
                     {catalogItems.map((item) => (
                       <option key={item.id} value={item.id}>
-                        {item.name} - ${item.price.toFixed(2)}
+                        {item.name} — ${item.price.toFixed(2)}
                       </option>
                     ))}
                   </select>
                 </div>
-                <div>
+
+                {/* Contact fields */}
+                {(['requesterName', 'requesterEmail', 'requesterPhone'] as const).map((field) => (
                   <input
-                    value={orderRequest.requesterName}
-                    onChange={(event) =>
-                      setOrderRequest((prev) => ({ ...prev, requesterName: event.target.value }))
+                    key={field}
+                    value={orderRequest[field]}
+                    onChange={(e) => setOrderRequest((prev) => ({ ...prev, [field]: e.target.value }))}
+                    placeholder={
+                      field === 'requesterName' ? 'Your name *'
+                      : field === 'requesterEmail' ? 'Your email'
+                      : 'Your phone'
                     }
-                    placeholder="Your name"
-                    className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
+                    className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink placeholder:text-brand-stone focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold transition-all"
                   />
-                </div>
-                <div>
-                  <input
-                    value={orderRequest.requesterEmail}
-                    onChange={(event) =>
-                      setOrderRequest((prev) => ({ ...prev, requesterEmail: event.target.value }))
-                    }
-                    placeholder="Your email"
-                    className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <input
-                    value={orderRequest.requesterPhone}
-                    onChange={(event) =>
-                      setOrderRequest((prev) => ({ ...prev, requesterPhone: event.target.value }))
-                    }
-                    placeholder="Your phone"
-                    className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
-                  />
-                </div>
-                <div>
-                  <textarea
-                    value={orderRequest.notes}
-                    onChange={(event) =>
-                      setOrderRequest((prev) => ({ ...prev, notes: event.target.value }))
-                    }
-                    placeholder="Optional notes"
-                    rows={4}
-                    className="w-full rounded-lg border border-brand-border px-3 py-2 text-sm"
-                  />
-                </div>
+                ))}
+
+                <textarea
+                  value={orderRequest.notes}
+                  onChange={(e) => setOrderRequest((prev) => ({ ...prev, notes: e.target.value }))}
+                  placeholder="Optional notes about your order…"
+                  rows={3}
+                  className="w-full px-3 py-2.5 rounded-xl border border-brand-border bg-white text-sm text-brand-ink placeholder:text-brand-stone resize-none focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold transition-all"
+                />
+
                 <button
                   type="button"
                   onClick={submitCatalogOrderRequest}
                   disabled={submittingRequest || catalogItems.length === 0}
-                  className="w-full h-10 rounded-lg bg-brand-ink text-white text-sm font-semibold hover:bg-brand-charcoal disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full h-10 rounded-xl bg-brand-ink text-white text-sm font-semibold hover:bg-brand-charcoal transition-all flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {submittingRequest ? 'Sending request...' : 'Send order request'}
+                  {submittingRequest ? (
+                    <><Loader2 size={13} className="animate-spin" /> Sending…</>
+                  ) : (
+                    <><Send size={13} /> Send order request</>
+                  )}
                 </button>
               </div>
             </div>
+
           </div>
         </div>
       </div>

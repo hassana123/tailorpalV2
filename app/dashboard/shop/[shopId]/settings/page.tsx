@@ -6,9 +6,9 @@ import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
-import { Textarea } from '@/components/ui/textarea'
 import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
+import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
 import {
   LocationAutocomplete,
@@ -16,6 +16,20 @@ import {
 } from '@/components/location/LocationAutocomplete'
 import { LocationHierarchyFields } from '@/components/location/LocationHierarchyFields'
 import { uploadShopMedia } from '@/lib/utils/shop-media'
+import {
+  Settings,
+  Store,
+  MapPin,
+  Image as ImageIcon,
+  FileText,
+  Save,
+  BookOpen,
+  ChevronLeft,
+  Loader2,
+} from 'lucide-react'
+import { cn } from '@/lib/utils'
+
+// ─── Types ────────────────────────────────────────────────────────────────────
 
 type ShopForm = {
   name: string
@@ -31,6 +45,105 @@ type ShopForm = {
   latitude: number | null
   longitude: number | null
 }
+
+// ─── Section card wrapper ─────────────────────────────────────────────────────
+
+function SettingsSection({
+  icon: Icon,
+  title,
+  description,
+  children,
+}: {
+  icon: React.ElementType
+  title: string
+  description?: string
+  children: React.ReactNode
+}) {
+  return (
+    <div className="bg-white rounded-[2rem] border border-brand-border/60 shadow-sm overflow-hidden">
+      {/* Section header */}
+      <div className="flex items-start gap-4 px-7 pt-7 pb-5 border-b border-brand-border/50">
+        <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center flex-shrink-0">
+          <Icon size={18} className="text-brand-gold" />
+        </div>
+        <div>
+          <h2 className="font-display text-base text-brand-ink">{title}</h2>
+          {description && (
+            <p className="text-xs text-brand-stone mt-0.5">{description}</p>
+          )}
+        </div>
+      </div>
+      <div className="px-7 py-6">{children}</div>
+    </div>
+  )
+}
+
+// ─── Image upload card ────────────────────────────────────────────────────────
+
+function ImageUploadCard({
+  label,
+  preview,
+  uploading,
+  disabled,
+  aspectRatio = 'square',
+  onChange,
+}: {
+  label: string
+  preview: string
+  uploading: boolean
+  disabled: boolean
+  aspectRatio?: 'square' | 'wide'
+  onChange: (e: React.ChangeEvent<HTMLInputElement>) => void
+}) {
+  return (
+    <div className="space-y-2">
+      <Label className="text-[10px] font-bold text-brand-stone uppercase tracking-wider">
+        {label}
+      </Label>
+      <label
+        className={cn(
+          'relative flex items-center justify-center rounded-2xl border-2 border-dashed border-brand-border overflow-hidden cursor-pointer group transition-colors hover:border-brand-gold/50',
+          aspectRatio === 'square' ? 'h-32 w-32' : 'h-32 w-full',
+        )}
+      >
+        {preview ? (
+          <>
+            <img
+              src={preview}
+              alt={label}
+              className="absolute inset-0 w-full h-full object-cover"
+            />
+            <div className="absolute inset-0 bg-brand-ink/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+              <ImageIcon size={18} className="text-white" />
+            </div>
+          </>
+        ) : (
+          <div className="flex flex-col items-center gap-1.5 text-brand-stone group-hover:text-brand-gold transition-colors">
+            <ImageIcon size={20} />
+            <span className="text-[10px] font-semibold">Upload</span>
+          </div>
+        )}
+        {uploading && (
+          <div className="absolute inset-0 bg-white/80 flex items-center justify-center">
+            <Loader2 size={18} className="animate-spin text-brand-gold" />
+          </div>
+        )}
+        <input
+          type="file"
+          accept="image/*"
+          className="sr-only"
+          onChange={onChange}
+          disabled={disabled}
+        />
+      </label>
+      <p className="text-[10px] text-brand-stone">
+        {uploading ? 'Uploading…' : 'PNG / JPG / WebP · max 5 MB'}
+      </p>
+    </div>
+  )
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 
 export default function ShopSettingsPage() {
   const params = useParams()
@@ -61,10 +174,11 @@ export default function ShopSettingsPage() {
     void loadShop()
   }, [shopId])
 
+  // ─── Logic (all unchanged) ───────────────────────────────────────────────
+
   const loadShop = async () => {
     try {
       setLoading(true)
-
       const { data, error } = await supabase
         .from('shops')
         .select(
@@ -73,9 +187,7 @@ export default function ShopSettingsPage() {
         .eq('id', shopId)
         .single()
 
-      if (error || !data) {
-        throw error ?? new Error('Shop not found')
-      }
+      if (error || !data) throw error ?? new Error('Shop not found')
 
       setForm({
         name: data.name ?? '',
@@ -104,10 +216,8 @@ export default function ShopSettingsPage() {
   ) => {
     const file = event.target.files?.[0]
     if (!file) return
-
     const setUploading = target === 'logoUrl' ? setLogoUploading : setBannerUploading
     const uploadFolder = target === 'logoUrl' ? 'logos' : 'banners'
-
     try {
       setUploading(true)
       const publicUrl = await uploadShopMedia(supabase, file, uploadFolder)
@@ -124,7 +234,6 @@ export default function ShopSettingsPage() {
   const saveShopSettings = async () => {
     try {
       setSaving(true)
-
       const { error } = await supabase
         .from('shops')
         .update({
@@ -145,7 +254,6 @@ export default function ShopSettingsPage() {
         .eq('id', shopId)
 
       if (error) throw error
-
       toast.success('Shop settings updated')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to update settings')
@@ -163,41 +271,93 @@ export default function ShopSettingsPage() {
     }))
   }
 
+  // ─── Loading ─────────────────────────────────────────────────────────────
+
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      <div className="flex items-center justify-center min-h-[60vh]">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-ink" />
       </div>
     )
   }
 
-  return (
-    <div className="container mx-auto py-8 px-4 space-y-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Shop Settings</CardTitle>
-          <CardDescription>
-            Update your shop profile, branding, and location.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <Field
-              label="Shop Name"
-              value={form.name}
-              onChange={(value) => setForm((prev) => ({ ...prev, name: value }))}
-            />
-            <Field
-              label="Email"
-              value={form.email}
-              onChange={(value) => setForm((prev) => ({ ...prev, email: value }))}
-            />
-            <Field
-              label="Phone"
-              value={form.phone}
-              onChange={(value) => setForm((prev) => ({ ...prev, phone: value }))}
-            />
+  const isBusy = saving || logoUploading || bannerUploading
 
+  return (
+    <div className="min-h-screen bg-brand-cream">
+      <div className="md:w-[90%] md:px-0 px-4  mx-auto   py-8 space-y-5">
+
+        {/* ── Page title ─────────────────────────────────────────────────── */}
+        <div className="flex items-start justify-between gap-4">
+          <div>
+            <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">
+              Dashboard
+            </p>
+            <h1 className="font-display text-2xl lg:text-3xl text-brand-ink flex items-center gap-2">
+              <Settings size={22} className="text-brand-gold" />
+              Shop Settings
+            </h1>
+            <p className="text-sm text-brand-stone mt-1">
+              Update your shop profile, branding, and location
+            </p>
+          </div>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push(`/dashboard/shop/${shopId}`)}
+            className="text-brand-stone hover:text-brand-ink flex items-center gap-1.5 mt-1"
+          >
+            <ChevronLeft size={15} />
+            Back
+          </Button>
+        </div>
+
+        {/* ── Section 1: Basic info ──────────────────────────────────────── */}
+        <SettingsSection
+          icon={Store}
+          title="Basic Information"
+          description="Your shop name, contact details, and public-facing info"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>Shop Name *</Label>
+              <Input
+                value={form.name}
+                onChange={(e) => setForm((p) => ({ ...p, name: e.target.value }))}
+                placeholder="e.g. Atelier V"
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Email *</Label>
+              <Input
+                type="email"
+                value={form.email}
+                onChange={(e) => setForm((p) => ({ ...p, email: e.target.value }))}
+                placeholder="hello@yourshop.com"
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5 sm:col-span-2">
+              <Label>Phone</Label>
+              <Input
+                type="tel"
+                value={form.phone}
+                onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                placeholder="+1 (555) 000-0000"
+                className="h-11"
+              />
+            </div>
+          </div>
+        </SettingsSection>
+
+        {/* ── Section 2: Location ────────────────────────────────────────── */}
+        <SettingsSection
+          icon={MapPin}
+          title="Location"
+          description="Help customers find your physical shop"
+        >
+          <div className="space-y-4">
             <LocationHierarchyFields
               country={form.country}
               state={form.state}
@@ -233,9 +393,8 @@ export default function ShopSettingsPage() {
                 }))
               }
             />
-
-            <div className="md:col-span-2">
-              <label className="text-sm font-medium">Address</label>
+            <div className="space-y-1.5">
+              <Label>Street Address</Label>
               <LocationAutocomplete
                 value={form.address}
                 country={form.country}
@@ -253,102 +412,75 @@ export default function ShopSettingsPage() {
                 placeholder="Type address and select suggestion"
               />
             </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Shop Logo</label>
-              {form.logoUrl ? (
-                <img
-                  src={form.logoUrl}
-                  alt="Shop logo preview"
-                  className="h-20 w-20 rounded-lg object-cover border"
-                />
-              ) : (
-                <div className="h-20 w-20 rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">
-                  No logo
-                </div>
-              )}
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(event) => handleImageUpload(event, 'logoUrl')}
-                disabled={logoUploading || saving}
-              />
-              <p className="text-xs text-muted-foreground">
-                {logoUploading ? 'Uploading...' : 'PNG/JPG/WebP up to 5MB'}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <label className="text-sm font-medium">Banner Image</label>
-              {form.bannerUrl ? (
-                <img
-                  src={form.bannerUrl}
-                  alt="Shop banner preview"
-                  className="h-20 w-full rounded-lg object-cover border"
-                />
-              ) : (
-                <div className="h-20 w-full rounded-lg border border-dashed flex items-center justify-center text-xs text-muted-foreground">
-                  No banner
-                </div>
-              )}
-              <Input
-                type="file"
-                accept="image/*"
-                onChange={(event) => handleImageUpload(event, 'bannerUrl')}
-                disabled={bannerUploading || saving}
-              />
-              <p className="text-xs text-muted-foreground">
-                {bannerUploading ? 'Uploading...' : 'PNG/JPG/WebP up to 5MB'}
-              </p>
-            </div>
           </div>
+        </SettingsSection>
 
-          <div>
-            <label className="text-sm font-medium">Description</label>
-            <Textarea
-              className="mt-1"
-              value={form.description}
-              onChange={(event) =>
-                setForm((prev) => ({ ...prev, description: event.target.value }))
-              }
+        {/* ── Section 3: Branding ────────────────────────────────────────── */}
+        <SettingsSection
+          icon={ImageIcon}
+          title="Visual Identity"
+          description="Logo and banner image shown on your marketplace profile"
+        >
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 items-start">
+            <ImageUploadCard
+              label="Shop Logo"
+              preview={form.logoUrl}
+              uploading={logoUploading}
+              disabled={isBusy}
+              aspectRatio="square"
+              onChange={(e) => handleImageUpload(e, 'logoUrl')}
             />
+            <div className="sm:col-span-2">
+              <ImageUploadCard
+                label="Banner Image"
+                preview={form.bannerUrl}
+                uploading={bannerUploading}
+                disabled={isBusy}
+                aspectRatio="wide"
+                onChange={(e) => handleImageUpload(e, 'bannerUrl')}
+              />
+            </div>
           </div>
+        </SettingsSection>
 
-          <div className="flex flex-wrap gap-2">
-            <Button onClick={saveShopSettings} disabled={saving || logoUploading || bannerUploading}>
-              {saving ? 'Saving...' : 'Save Changes'}
-            </Button>
+        {/* ── Section 4: Description ─────────────────────────────────────── */}
+        <SettingsSection
+          icon={FileText}
+          title="Shop Story"
+          description="Tell customers what makes your shop unique"
+        >
+          <Textarea
+            value={form.description}
+            onChange={(e) => setForm((p) => ({ ...p, description: e.target.value }))}
+            placeholder="Describe your aesthetic, specialties, and what customers can expect…"
+            rows={5}
+            className="resize-none"
+          />
+        </SettingsSection>
 
-            <Button variant="outline" asChild>
-              <Link href={`/dashboard/shop/${shopId}/catalog`}>Manage Catalog</Link>
-            </Button>
+        {/* ── Actions ────────────────────────────────────────────────────── */}
+        <div className="flex flex-wrap items-center justify-between gap-3 pt-2 pb-8">
+          <Button variant="outline" asChild className="rounded-xl">
+            <Link href={`/dashboard/shop/${shopId}/catalog`} className="flex items-center gap-2">
+              <BookOpen size={15} />
+              Manage Catalog
+            </Link>
+          </Button>
 
-            <Button
-              variant="outline"
-              onClick={() => router.push(`/dashboard/shop/${shopId}`)}
-            >
-              Back
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
-    </div>
-  )
-}
+          <Button
+            onClick={saveShopSettings}
+            disabled={isBusy}
+            className="bg-brand-ink hover:bg-brand-charcoal text-white px-8 rounded-xl h-11 shadow-brand flex items-center gap-2"
+          >
+            {saving ? (
+              <><Loader2 size={15} className="animate-spin" /> Saving…</>
+            ) : (
+              <><Save size={15} /> Save Changes</>
+            )}
+          </Button>
+        </div>
 
-function Field({
-  label,
-  value,
-  onChange,
-}: {
-  label: string
-  value: string
-  onChange: (value: string) => void
-}) {
-  return (
-    <div>
-      <label className="text-sm font-medium">{label}</label>
-      <Input className="mt-1" value={value} onChange={(event) => onChange(event.target.value)} />
+      </div>
     </div>
   )
 }
