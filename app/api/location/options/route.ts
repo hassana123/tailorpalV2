@@ -6,144 +6,35 @@ const querySchema = z.string().trim().max(100).optional()
 const countrySchema = z.string().trim().min(1).max(100).optional()
 const stateSchema = z.string().trim().min(1).max(100).optional()
 
-interface LocationIqResponseItem {
-  address?: {
-    city?: string
-    town?: string
-    village?: string
-    county?: string
-    state?: string
-    country?: string
-  }
+const COUNTRIES_NOW_BASE_URL = 'https://countriesnow.space/api/v0.1/countries'
+const COUNTRY_STATE_CACHE_TTL_MS = 24 * 60 * 60 * 1000
+const CITY_CACHE_TTL_MS = 12 * 60 * 60 * 1000
+
+interface CountriesNowResponse<T> {
+  error?: boolean
+  msg?: string
+  data?: T
 }
 
-const COMMON_COUNTRIES = [
-  'Australia',
-  'Brazil',
-  'Canada',
-  'China',
-  'Egypt',
-  'France',
-  'Germany',
-  'Ghana',
-  'India',
-  'Ireland',
-  'Italy',
-  'Kenya',
-  'Mexico',
-  'Netherlands',
-  'New Zealand',
-  'Nigeria',
-  'Pakistan',
-  'Portugal',
-  'Qatar',
-  'Rwanda',
-  'Saudi Arabia',
-  'South Africa',
-  'Spain',
-  'Sweden',
-  'Tanzania',
-  'Turkey',
-  'Uganda',
-  'United Arab Emirates',
-  'United Kingdom',
-  'United States',
-  'Zambia',
-]
-
-const COUNTRY_STATE_FALLBACK: Record<string, string[]> = {
-  nigeria: [
-    'Abia',
-    'Adamawa',
-    'Akwa Ibom',
-    'Anambra',
-    'Bauchi',
-    'Bayelsa',
-    'Benue',
-    'Borno',
-    'Cross River',
-    'Delta',
-    'Ebonyi',
-    'Edo',
-    'Ekiti',
-    'Enugu',
-    'Federal Capital Territory',
-    'Gombe',
-    'Imo',
-    'Jigawa',
-    'Kaduna',
-    'Kano',
-    'Katsina',
-    'Kebbi',
-    'Kogi',
-    'Kwara',
-    'Lagos',
-    'Nasarawa',
-    'Niger',
-    'Ogun',
-    'Ondo',
-    'Osun',
-    'Oyo',
-    'Plateau',
-    'Rivers',
-    'Sokoto',
-    'Taraba',
-    'Yobe',
-    'Zamfara',
-  ],
-  'united states': [
-    'Alabama',
-    'Alaska',
-    'Arizona',
-    'Arkansas',
-    'California',
-    'Colorado',
-    'Connecticut',
-    'Delaware',
-    'Florida',
-    'Georgia',
-    'Hawaii',
-    'Idaho',
-    'Illinois',
-    'Indiana',
-    'Iowa',
-    'Kansas',
-    'Kentucky',
-    'Louisiana',
-    'Maine',
-    'Maryland',
-    'Massachusetts',
-    'Michigan',
-    'Minnesota',
-    'Mississippi',
-    'Missouri',
-    'Montana',
-    'Nebraska',
-    'Nevada',
-    'New Hampshire',
-    'New Jersey',
-    'New Mexico',
-    'New York',
-    'North Carolina',
-    'North Dakota',
-    'Ohio',
-    'Oklahoma',
-    'Oregon',
-    'Pennsylvania',
-    'Rhode Island',
-    'South Carolina',
-    'South Dakota',
-    'Tennessee',
-    'Texas',
-    'Utah',
-    'Vermont',
-    'Virginia',
-    'Washington',
-    'West Virginia',
-    'Wisconsin',
-    'Wyoming',
-  ],
+interface CountriesNowStateEntry {
+  name?: string
+  state_name?: string
 }
+
+interface CountriesNowCountryEntry {
+  name?: string
+  country?: string
+  states?: CountriesNowStateEntry[]
+}
+
+interface CountryStateCatalog {
+  countries: string[]
+  countryByNormalized: Map<string, string>
+  statesByCountry: Map<string, string[]>
+}
+
+let cachedCountryStateCatalog: { value: CountryStateCatalog; cachedAt: number } | null = null
+const cityCache = new Map<string, { value: string[]; cachedAt: number }>()
 
 function normalize(value: string) {
   return value.trim().toLowerCase()
@@ -153,14 +44,184 @@ function uniqueSorted(values: string[]) {
   return Array.from(new Set(values)).sort((a, b) => a.localeCompare(b))
 }
 
-function buildSearchUrl(apiKey: string, query: string, limit = 50) {
-  const url = new URL('https://us1.locationiq.com/v1/search')
-  url.searchParams.set('key', apiKey)
-  url.searchParams.set('q', query)
-  url.searchParams.set('format', 'json')
-  url.searchParams.set('addressdetails', '1')
-  url.searchParams.set('limit', String(limit))
-  return url
+function getIntlCountries() {
+  const supportedValuesOf = (
+    Intl as typeof Intl & { supportedValuesOf?: (key: string) => string[] }
+  ).supportedValuesOf
+
+  if (typeof supportedValuesOf !== 'function') {
+    return [] as string[]
+  }
+
+  const display = new Intl.DisplayNames(['en'], { type: 'region' })
+  return uniqueSorted(
+    supportedValuesOf('region')
+      .map((code) => display.of(code))
+      .filter((value): value is string => Boolean(value))
+      .filter((value) => !/^[A-Z]{2,3}$/.test(value)),
+  )
+}
+
+function parseCountryStatesPayload(payload: CountriesNowResponse<unknown>): CountryStateCatalog | null {
+  if (payload.error || !Array.isArray(payload.data)) {
+    return null
+  }
+
+  const countries: string[] = []
+  const countryByNormalized = new Map<string, string>()
+  const statesByCountry = new Map<string, string[]>()
+
+  for (const item of payload.data as CountriesNowCountryEntry[]) {
+    const country = item.name?.trim() || item.country?.trim() || ''
+    if (!country) {
+      continue
+    }
+
+    const normalizedCountry = normalize(country)
+    countries.push(country)
+    countryByNormalized.set(normalizedCountry, country)
+
+    const states = uniqueSorted(
+      (item.states ?? [])
+        .map((entry) => entry.name?.trim() || entry.state_name?.trim() || '')
+        .filter(Boolean),
+    )
+
+    statesByCountry.set(normalizedCountry, states)
+  }
+
+  const uniqueCountries = uniqueSorted(countries)
+  return {
+    countries: uniqueCountries,
+    countryByNormalized,
+    statesByCountry,
+  }
+}
+
+async function fetchCountriesNowJson<T>(url: string): Promise<CountriesNowResponse<T> | null> {
+  try {
+    const response = await fetch(url, { cache: 'no-store' })
+    if (!response.ok) {
+      return null
+    }
+    return (await response.json()) as CountriesNowResponse<T>
+  } catch {
+    return null
+  }
+}
+
+async function getCountryStateCatalog() {
+  if (
+    cachedCountryStateCatalog &&
+    Date.now() - cachedCountryStateCatalog.cachedAt < COUNTRY_STATE_CACHE_TTL_MS
+  ) {
+    return cachedCountryStateCatalog.value
+  }
+
+  const payload =
+    (await fetchCountriesNowJson<unknown>(`${COUNTRIES_NOW_BASE_URL}/states`)) ??
+    (await fetchCountriesNowJson<unknown>(`${COUNTRIES_NOW_BASE_URL}/states/`))
+
+  const parsed = payload ? parseCountryStatesPayload(payload) : null
+  if (!parsed) {
+    return null
+  }
+
+  cachedCountryStateCatalog = { value: parsed, cachedAt: Date.now() }
+  return parsed
+}
+
+function parseCountryStateResult(payload: CountriesNowResponse<unknown>, country: string) {
+  if (payload.error || payload.data == null) {
+    return []
+  }
+
+  const normalizedCountry = normalize(country)
+  const entries = Array.isArray(payload.data) ? payload.data : [payload.data]
+  for (const entry of entries as CountriesNowCountryEntry[]) {
+    const entryCountry = entry.name?.trim() || entry.country?.trim() || ''
+    if (!entryCountry || normalize(entryCountry) !== normalizedCountry) {
+      continue
+    }
+
+    return uniqueSorted(
+      (entry.states ?? [])
+        .map((item) => item.name?.trim() || item.state_name?.trim() || '')
+        .filter(Boolean),
+    )
+  }
+
+  return []
+}
+
+async function fetchStatesByCountry(country: string) {
+  const queryValue = encodeURIComponent(country)
+  const urls = [
+    `${COUNTRIES_NOW_BASE_URL}/states/q?country=${queryValue}`,
+    `${COUNTRIES_NOW_BASE_URL}/states?country=${queryValue}`,
+    `${COUNTRIES_NOW_BASE_URL}/states/?country=${queryValue}`,
+  ]
+
+  for (const url of urls) {
+    const payload = await fetchCountriesNowJson<unknown>(url)
+    if (!payload) {
+      continue
+    }
+
+    const states = parseCountryStateResult(payload, country)
+    if (states.length > 0) {
+      return states
+    }
+  }
+
+  return [] as string[]
+}
+
+function parseCityPayload(payload: CountriesNowResponse<unknown>) {
+  if (payload.error || !Array.isArray(payload.data)) {
+    return []
+  }
+
+  return uniqueSorted(
+    (payload.data as Array<string | { city?: string; name?: string }>)
+      .map((value) => {
+        if (typeof value === 'string') {
+          return value.trim()
+        }
+        return value.city?.trim() || value.name?.trim() || ''
+      })
+      .filter(Boolean),
+  )
+}
+
+async function fetchCitiesByCountryState(country: string, state: string) {
+  const cacheKey = `${normalize(country)}::${normalize(state)}`
+  const cached = cityCache.get(cacheKey)
+  if (cached && Date.now() - cached.cachedAt < CITY_CACHE_TTL_MS) {
+    return cached.value
+  }
+
+  const params = new URLSearchParams({ country, state })
+  const urls = [
+    `${COUNTRIES_NOW_BASE_URL}/state/cities/q?${params.toString()}`,
+    `${COUNTRIES_NOW_BASE_URL}/state/cities?${params.toString()}`,
+  ]
+
+  for (const url of urls) {
+    const payload = await fetchCountriesNowJson<unknown>(url)
+    if (!payload) {
+      continue
+    }
+
+    const cities = parseCityPayload(payload)
+    if (cities.length > 0) {
+      cityCache.set(cacheKey, { value: cities, cachedAt: Date.now() })
+      return cities
+    }
+  }
+
+  cityCache.set(cacheKey, { value: [], cachedAt: Date.now() })
+  return [] as string[]
 }
 
 export async function GET(request: NextRequest) {
@@ -170,103 +231,62 @@ export async function GET(request: NextRequest) {
   const state = stateSchema.safeParse(request.nextUrl.searchParams.get('state') ?? undefined)
 
   if (!level.success || !query.success || !country.success || !state.success) {
-    return NextResponse.json({ error: 'Invalid level' }, { status: 400 })
+    return NextResponse.json({ error: 'Invalid location query' }, { status: 400 })
   }
 
-  const countryValue = country.data
-  const stateValue = state.data
   const queryValue = query.data
+  const selectedCountry = country.data ?? ''
+  const selectedState = state.data ?? ''
 
-  if (level.data === 'state' && !countryValue) {
+  if (level.data === 'state' && !selectedCountry) {
     return NextResponse.json({ error: 'Country is required for states' }, { status: 400 })
   }
 
-  if (level.data === 'city' && (!countryValue || !stateValue)) {
+  if (level.data === 'city' && (!selectedCountry || !selectedState)) {
     return NextResponse.json({ error: 'Country and state are required for cities' }, { status: 400 })
   }
 
   const normalizedQuery = queryValue ? normalize(queryValue) : ''
-  const normalizedCountry = countryValue ? normalize(countryValue) : ''
-  const normalizedState = stateValue ? normalize(stateValue) : ''
-  const apiKey = process.env.LOCATIONIQ_API_KEY
-
-  const getFallback = () => {
-    if (level.data === 'country') {
-      return uniqueSorted(
-        COMMON_COUNTRIES.filter((value) =>
-          normalizedQuery ? normalize(value).includes(normalizedQuery) : true,
-        ),
-      )
-    }
-
-    if (level.data === 'state' && normalizedCountry) {
-      const fallback = COUNTRY_STATE_FALLBACK[normalizedCountry] ?? []
-      return uniqueSorted(
-        fallback.filter((value) =>
-          normalizedQuery ? normalize(value).includes(normalizedQuery) : true,
-        ),
-      )
-    }
-
-    return [] as string[]
-  }
-
-  if (!apiKey) {
-    return NextResponse.json({ options: getFallback() })
-  }
+  const filterByQuery = (value: string) =>
+    normalizedQuery ? normalize(value).includes(normalizedQuery) : true
 
   try {
-    const searchQuery =
-      level.data === 'country'
-        ? queryValue || 'world'
-        : level.data === 'state'
-          ? [queryValue, countryValue].filter(Boolean).join(', ')
-          : [queryValue, stateValue, countryValue].filter(Boolean).join(', ')
-
-    const response = await fetch(buildSearchUrl(apiKey, searchQuery), { cache: 'no-store' })
-    if (!response.ok) {
-      return NextResponse.json({ options: getFallback() })
-    }
-
-    const payload = (await response.json()) as LocationIqResponseItem[]
-    let options: string[] = []
+    const catalog = await getCountryStateCatalog()
 
     if (level.data === 'country') {
-      options = payload
-        .map((item) => item.address?.country ?? '')
-        .filter(Boolean)
-    } else if (level.data === 'state') {
-      options = payload
-        .filter(
-          (item) =>
-            normalize(item.address?.country ?? '').includes(normalizedCountry),
-        )
-        .map((item) => item.address?.state ?? '')
-        .filter(Boolean)
-    } else {
-      options = payload
-        .filter(
-          (item) =>
-            normalize(item.address?.country ?? '').includes(normalizedCountry) &&
-            normalize(item.address?.state ?? '').includes(normalizedState),
-        )
-        .map((item) => item.address?.city ?? item.address?.town ?? item.address?.village ?? item.address?.county ?? '')
-        .filter(Boolean)
+      const countries = catalog?.countries.length ? catalog.countries : getIntlCountries()
+      const options = uniqueSorted(countries.filter(filterByQuery))
+      return NextResponse.json({ options: options.slice(0, 250) })
     }
 
-    const normalizedOptions = uniqueSorted(
-      options.filter((value) =>
-        normalizedQuery ? normalize(value).includes(normalizedQuery) : true,
-      ),
-    )
+    const normalizedCountry = normalize(selectedCountry)
+    const resolvedCountry =
+      catalog?.countryByNormalized.get(normalizedCountry) ?? selectedCountry
 
-    if (normalizedOptions.length > 0) {
-      return NextResponse.json({ options: normalizedOptions.slice(0, 100) })
+    if (level.data === 'state') {
+      let states = catalog?.statesByCountry.get(normalizedCountry) ?? []
+      if (states.length === 0) {
+        states = await fetchStatesByCountry(resolvedCountry)
+      }
+
+      const options = uniqueSorted(states.filter(filterByQuery))
+      return NextResponse.json({ options: options.slice(0, 250) })
     }
 
-    return NextResponse.json({ options: getFallback() })
+    const knownStates = catalog?.statesByCountry.get(normalizedCountry) ?? []
+    const resolvedState =
+      knownStates.find((value) => normalize(value) === normalize(selectedState)) ??
+      selectedState
+
+    const cities = await fetchCitiesByCountryState(resolvedCountry, resolvedState)
+    const options = uniqueSorted(cities.filter(filterByQuery))
+    return NextResponse.json({ options: options.slice(0, 250) })
   } catch (error) {
-    console.error('Location option lookup failed:', error)
-    return NextResponse.json({ options: getFallback() })
+    console.error('CountriesNow location lookup failed:', error)
+    if (level.data === 'country') {
+      const options = uniqueSorted(getIntlCountries().filter(filterByQuery))
+      return NextResponse.json({ options: options.slice(0, 250) })
+    }
+    return NextResponse.json({ options: [] })
   }
 }

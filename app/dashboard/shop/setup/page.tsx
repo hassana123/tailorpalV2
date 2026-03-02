@@ -105,10 +105,7 @@ export default function ShopSetupPage() {
   const handleLocationSelect = (suggestion: LocationSuggestion) => {
     setFormData((prev) => ({
       ...prev,
-      address: suggestion.address || suggestion.displayName,
-      city: suggestion.city || prev.city,
-      state: suggestion.state || prev.state,
-      country: suggestion.country || prev.country,
+      address: suggestion.displayName,
       latitude: suggestion.lat,
       longitude: suggestion.lon,
     }))

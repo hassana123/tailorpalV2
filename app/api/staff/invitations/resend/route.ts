@@ -7,6 +7,7 @@ import {
   sendInviteViaSupabaseAuth,
   type InviteDeliveryMethod,
 } from '@/lib/staff/invitations'
+import { getRequestAppUrl } from '@/lib/utils/app-url'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -60,7 +61,7 @@ export async function POST(request: NextRequest) {
     const { token, tokenHash } = createInviteToken()
     const inviteCode = await createUniqueInviteCode(supabase)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin
+    const appUrl = getRequestAppUrl(request)
     const { tokenInviteLink, codeInviteLink } = buildInviteLinks(appUrl, token, inviteCode)
 
     const { error: updateError } = await supabase

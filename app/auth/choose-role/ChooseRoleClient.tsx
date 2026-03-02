@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import { getAuthErrorMessage } from '@/lib/auth/errors'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useEffect, useState } from 'react'
@@ -109,7 +110,10 @@ export default function ChooseRolePage() {
 
       const { error: exchangeError } = await supabase.auth.exchangeCodeForSession(code)
       if (exchangeError) {
-        const message = exchangeError.message || 'Could not complete sign-in. Please try again.'
+        const message = getAuthErrorMessage(
+          exchangeError,
+          'Could not complete sign-in. Please try again.',
+        )
         setError(message)
         toast.error(message)
       } else {
@@ -171,9 +175,9 @@ export default function ChooseRolePage() {
 
       if (selected === 'shop_owner') router.push('/dashboard/shop/setup')
       else if (selected === 'staff') router.push('/dashboard/staff/onboarding')
-      else router.push('/marketplace')
+      else router.push('/dashboard/customer')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An error occurred'
+      const message = getAuthErrorMessage(err, 'Unable to complete setup. Please try again.')
       setError(message)
       toast.error(message)
     } finally {

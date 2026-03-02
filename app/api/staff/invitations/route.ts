@@ -7,6 +7,7 @@ import {
   sendInviteViaSupabaseAuth,
   type InviteDeliveryMethod,
 } from '@/lib/staff/invitations'
+import { getRequestAppUrl } from '@/lib/utils/app-url'
 import { InviteStaffRequest } from '@/lib/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -69,7 +70,7 @@ export async function POST(request: NextRequest) {
     const { token, tokenHash } = createInviteToken()
     const inviteCode = await createUniqueInviteCode(supabase)
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL ?? request.nextUrl.origin
+    const appUrl = getRequestAppUrl(request)
     const { tokenInviteLink, codeInviteLink } = buildInviteLinks(appUrl, token, inviteCode)
 
     const { data: invitation, error: inviteError } = await supabase
@@ -94,8 +95,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to create invitation' }, { status: 500 })
     }
 
+    let staffRecordId: string | null = null
+
     if (existingStaff?.status === 'revoked') {
-      const { error: staffUpdateError } = await supabase
+      const { data: updatedStaff, error: staffUpdateError } = await supabase
         .from('shop_staff')
         .update({
           user_id: null,
@@ -106,25 +109,46 @@ export async function POST(request: NextRequest) {
           updated_at: new Date().toISOString(),
         })
         .eq('id', existingStaff.id)
+        .select('id')
+        .single()
 
       if (staffUpdateError) {
         console.error('Error updating revoked staff record:', staffUpdateError)
         return NextResponse.json({ error: 'Failed to create pending staff record' }, { status: 500 })
       }
+      staffRecordId = updatedStaff.id
     } else {
-      const { error: staffInsertError } = await supabase.from('shop_staff').insert([
-        {
-          shop_id: payload.shopId,
-          email: inviteEmail,
-          role: 'staff',
-          status: 'pending',
-          invited_at: new Date().toISOString(),
-        },
-      ])
+      const { data: insertedStaff, error: staffInsertError } = await supabase
+        .from('shop_staff')
+        .insert([
+          {
+            shop_id: payload.shopId,
+            email: inviteEmail,
+            role: 'staff',
+            status: 'pending',
+            invited_at: new Date().toISOString(),
+          },
+        ])
+        .select('id')
+        .single()
 
       if (staffInsertError) {
         console.error('Error creating pending staff record:', staffInsertError)
         return NextResponse.json({ error: 'Failed to create pending staff record' }, { status: 500 })
+      }
+      staffRecordId = insertedStaff.id
+    }
+
+    if (staffRecordId) {
+      const { error: permissionInsertError } = await supabase.from('shop_staff_permissions').insert([
+        {
+          staff_id: staffRecordId,
+        },
+      ])
+
+      if (permissionInsertError && permissionInsertError.code !== '23505') {
+        console.error('Error creating staff permissions:', permissionInsertError)
+        return NextResponse.json({ error: 'Failed to initialize staff permissions' }, { status: 500 })
       }
     }
 

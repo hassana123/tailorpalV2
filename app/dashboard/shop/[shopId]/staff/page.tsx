@@ -20,6 +20,15 @@ interface StaffMember {
   accepted_at: string | null
 }
 
+interface StaffPermissions {
+  staff_id: string
+  can_manage_customers: boolean
+  can_manage_orders: boolean
+  can_manage_measurements: boolean
+  can_manage_catalog: boolean
+  can_manage_inventory: boolean
+}
+
 interface PendingInvitation {
   id: string
   email: string
@@ -53,6 +62,7 @@ export default function StaffManagementPage() {
   const [deliveryMethod, setDeliveryMethod] = useState<DeliveryMethod>('supabase_email')
   const [isLoading, setIsLoading] = useState(true)
   const [isInviting, setIsInviting] = useState(false)
+  const [savingPermissionsFor, setSavingPermissionsFor] = useState<string | null>(null)
   const [appOrigin, setAppOrigin] = useState('')
   const [sharingInviteId, setSharingInviteId] = useState<string | null>(null)
   const [latestInvite, setLatestInvite] = useState<{
@@ -63,6 +73,7 @@ export default function StaffManagementPage() {
     shareLinks?: InviteResponse['shareLinks']
   } | null>(null)
   const [error, setError] = useState<string | null>(null)
+  const [permissionsByStaff, setPermissionsByStaff] = useState<Record<string, StaffPermissions>>({})
   const supabase = useMemo(() => createClient(), [])
 
   useEffect(() => {
@@ -78,7 +89,7 @@ export default function StaffManagementPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true)
-      const [staffResult, invitationsResult] = await Promise.all([
+      const [staffResult, invitationsResult, permissionsResult] = await Promise.all([
         supabase
           .from('shop_staff')
           .select('*')
@@ -89,13 +100,26 @@ export default function StaffManagementPage() {
           .select('id, email, invite_code, status, expires_at, created_at')
           .eq('shop_id', shopId)
           .order('created_at', { ascending: false }),
+        supabase
+          .from('shop_staff_permissions')
+          .select(
+            'staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
+          ),
       ])
 
       if (staffResult.error) throw staffResult.error
       if (invitationsResult.error) throw invitationsResult.error
+      if (permissionsResult.error) throw permissionsResult.error
 
       setStaff((staffResult.data ?? []) as StaffMember[])
       setInvitations((invitationsResult.data ?? []) as PendingInvitation[])
+      const permissionMap = ((permissionsResult.data ?? []) as StaffPermissions[]).reduce<
+        Record<string, StaffPermissions>
+      >((accumulator, row) => {
+        accumulator[row.staff_id] = row
+        return accumulator
+      }, {})
+      setPermissionsByStaff(permissionMap)
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to load staff data'
       setError(message)
@@ -249,6 +273,72 @@ export default function StaffManagementPage() {
       const message = err instanceof Error ? err.message : 'An error occurred'
       setError(message)
       toast.error(message)
+    }
+  }
+
+  const getPermissionState = (staffId: string): StaffPermissions => {
+    return (
+      permissionsByStaff[staffId] ?? {
+        staff_id: staffId,
+        can_manage_customers: false,
+        can_manage_orders: false,
+        can_manage_measurements: false,
+        can_manage_catalog: false,
+        can_manage_inventory: false,
+      }
+    )
+  }
+
+  const updatePermissionDraft = (
+    staffId: string,
+    key: keyof Omit<StaffPermissions, 'staff_id'>,
+    value: boolean,
+  ) => {
+    setPermissionsByStaff((previous) => {
+      const current = previous[staffId] ?? getPermissionState(staffId)
+      return {
+        ...previous,
+        [staffId]: {
+          ...current,
+          [key]: value,
+        },
+      }
+    })
+  }
+
+  const savePermissions = async (staffId: string) => {
+    try {
+      setSavingPermissionsFor(staffId)
+      const current = getPermissionState(staffId)
+      const response = await fetch(`/api/staff/${staffId}/permissions`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          canManageCustomers: current.can_manage_customers,
+          canManageOrders: current.can_manage_orders,
+          canManageMeasurements: current.can_manage_measurements,
+          canManageCatalog: current.can_manage_catalog,
+          canManageInventory: current.can_manage_inventory,
+        }),
+      })
+
+      const payload = (await response.json()) as {
+        error?: string
+        permissions?: StaffPermissions
+      }
+      if (!response.ok || !payload.permissions) {
+        throw new Error(payload.error || 'Failed to save permissions')
+      }
+
+      setPermissionsByStaff((previous) => ({
+        ...previous,
+        [staffId]: payload.permissions as StaffPermissions,
+      }))
+      toast.success('Staff permissions updated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to save permissions')
+    } finally {
+      setSavingPermissionsFor(null)
     }
   }
 
@@ -505,12 +595,13 @@ export default function StaffManagementPage() {
                       <th className="p-3 text-left font-medium">Email</th>
                       <th className="p-3 text-left font-medium">Status</th>
                       <th className="p-3 text-left font-medium">Invited</th>
+                      <th className="p-3 text-left font-medium">Permissions</th>
                       <th className="p-3 text-right font-medium">Actions</th>
                     </tr>
                   </thead>
                   <tbody>
                     {staff.map((member) => (
-                      <tr key={member.id} className="border-b last:border-b-0">
+                      <tr key={member.id} className="border-b align-top last:border-b-0">
                         <td className="p-3">{member.email}</td>
                         <td className="p-3">
                           <span
@@ -528,14 +619,55 @@ export default function StaffManagementPage() {
                         <td className="p-3">
                           {new Date(member.invited_at).toLocaleDateString()}
                         </td>
+                        <td className="p-3">
+                          <div className="grid grid-cols-1 gap-2">
+                            {[
+                              ['can_manage_customers', 'Customers'],
+                              ['can_manage_orders', 'Orders'],
+                              ['can_manage_measurements', 'Measurements'],
+                              ['can_manage_catalog', 'Catalog'],
+                              ['can_manage_inventory', 'Inventory'],
+                            ].map(([key, label]) => (
+                              <label key={key} className="inline-flex items-center gap-2 text-xs">
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    getPermissionState(member.id)[
+                                      key as keyof Omit<StaffPermissions, 'staff_id'>
+                                    ]
+                                  }
+                                  onChange={(event) =>
+                                    updatePermissionDraft(
+                                      member.id,
+                                      key as keyof Omit<StaffPermissions, 'staff_id'>,
+                                      event.target.checked,
+                                    )
+                                  }
+                                  className="h-3.5 w-3.5"
+                                />
+                                <span>{label}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </td>
                         <td className="p-3 text-right">
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={() => handleRemoveStaff(member.id)}
-                          >
-                            Remove
-                          </Button>
+                          <div className="flex flex-col items-end gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              disabled={savingPermissionsFor === member.id}
+                              onClick={() => void savePermissions(member.id)}
+                            >
+                              {savingPermissionsFor === member.id ? 'Saving...' : 'Save Perms'}
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="destructive"
+                              onClick={() => handleRemoveStaff(member.id)}
+                            >
+                              Remove
+                            </Button>
+                          </div>
                         </td>
                       </tr>
                     ))}

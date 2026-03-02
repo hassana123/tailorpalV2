@@ -18,6 +18,10 @@ export function Navbar() {
   const [scrolled, setScrolled]     = useState(false)
   const pathname = usePathname()
   const isHome = pathname === '/'
+  const signInHref =
+    pathname.startsWith('/auth') || pathname === '/'
+      ? '/auth/login'
+      : `/auth/login?next=${encodeURIComponent(pathname)}`
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 24)
@@ -56,7 +60,7 @@ export function Navbar() {
 
           {/* Desktop CTAs */}
           <div className="hidden md:flex items-center gap-2.5">
-            <Link href="/auth/login">
+            <Link href={signInHref}>
               <button className="h-8.5 px-4 rounded-lg text-sm font-medium text-white/90 hover:text-white hover:bg-white/8 transition-all duration-200">
                 Sign in
               </button>
@@ -93,7 +97,7 @@ export function Navbar() {
             </Link>
           ))}
           <div className="pt-4 space-y-2 border-t border-white/8 mt-3">
-            <Link href="/auth/login" onClick={() => setMobileOpen(false)}>
+            <Link href={signInHref} onClick={() => setMobileOpen(false)}>
               <button className="w-full h-10 rounded-xl border border-white/15 text-sm font-medium text-white/70 hover:text-white hover:bg-white/8 transition-all">
                 Sign in
               </button>

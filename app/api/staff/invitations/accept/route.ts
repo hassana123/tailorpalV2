@@ -90,6 +90,8 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Failed to join shop' }, { status: 500 })
     }
 
+    let staffRecordId: string | null = null
+
     if (existing) {
       const { error: staffUpdateError } = await admin
         .from('shop_staff')
@@ -105,21 +107,40 @@ export async function POST(request: NextRequest) {
         console.error('Error updating existing staff record:', staffUpdateError)
         return NextResponse.json({ error: 'Failed to join shop' }, { status: 500 })
       }
+      staffRecordId = existing.id
     } else {
-      const { error: createStaffError } = await admin.from('shop_staff').insert([
-        {
-          shop_id: invitation.shop_id,
-          user_id: user.id,
-          email: invitation.email,
-          role: 'staff',
-          status: 'active',
-          accepted_at: nowIso,
-        },
-      ])
+      const { data: createdStaff, error: createStaffError } = await admin
+        .from('shop_staff')
+        .insert([
+          {
+            shop_id: invitation.shop_id,
+            user_id: user.id,
+            email: invitation.email,
+            role: 'staff',
+            status: 'active',
+            accepted_at: nowIso,
+          },
+        ])
+        .select('id')
+        .single()
 
       if (createStaffError) {
         console.error('Error creating staff record:', createStaffError)
         return NextResponse.json({ error: 'Failed to join shop' }, { status: 500 })
+      }
+      staffRecordId = createdStaff.id
+    }
+
+    if (staffRecordId) {
+      const { error: permissionInsertError } = await admin.from('shop_staff_permissions').insert([
+        {
+          staff_id: staffRecordId,
+        },
+      ])
+
+      if (permissionInsertError && permissionInsertError.code !== '23505') {
+        console.error('Error initializing staff permissions:', permissionInsertError)
+        return NextResponse.json({ error: 'Failed to finalize staff access' }, { status: 500 })
       }
     }
 

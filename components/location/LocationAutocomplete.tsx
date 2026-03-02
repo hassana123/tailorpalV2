@@ -127,6 +127,8 @@ export function LocationAutocomplete({
               type="button"
               className="w-full border-b px-3 py-2 text-left text-sm hover:bg-muted last:border-b-0"
               onMouseDown={() => {
+                // Fill the input with the exact selected suggestion text.
+                onValueChange(suggestion.displayName)
                 onSelect(suggestion)
                 setOpen(false)
               }}

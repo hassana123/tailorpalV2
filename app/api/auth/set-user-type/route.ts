@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { cookies } from 'next/headers'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -6,6 +7,11 @@ import { z } from 'zod'
 const schema = z.object({
   userType: z.enum(['shop_owner', 'staff', 'customer']),
 })
+
+type DbErrorLike = {
+  code?: string
+  message?: string
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -63,18 +69,35 @@ export async function POST(request: NextRequest) {
     }
 
     // Upsert ensures missing profile rows are repaired automatically.
+    const upsertPayload = {
+      id: user.id,
+      user_type: userType,
+      updated_at: new Date().toISOString(),
+    }
+
     const { error } = await supabase
       .from('profiles')
-      .upsert(
-        {
-          id: user.id,
-          user_type: userType,
-          updated_at: new Date().toISOString(),
-        },
-        { onConflict: 'id' },
-      )
+      .upsert(upsertPayload, { onConflict: 'id' })
 
     if (error) {
+      const dbError = error as DbErrorLike
+      if (dbError.code === '42501') {
+        try {
+          const admin = createAdminClient()
+          const { error: adminError } = await admin
+            .from('profiles')
+            .upsert(upsertPayload, { onConflict: 'id' })
+
+          if (!adminError) {
+            return NextResponse.json({ success: true })
+          }
+
+          console.error('Admin fallback failed while updating user type:', adminError)
+        } catch (adminClientError) {
+          console.error('Failed to create admin client for user type fallback:', adminClientError)
+        }
+      }
+
       console.error('Error updating user type:', error)
       return NextResponse.json(
         { error: 'Failed to update user role' },

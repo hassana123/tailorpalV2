@@ -10,6 +10,14 @@ export type OrderStatus =
   | 'cancelled'
 export type MeasurementStatus = 'pending' | 'completed'
 
+export interface StaffPermissionUpdateRequest {
+  canManageCustomers?: boolean
+  canManageOrders?: boolean
+  canManageMeasurements?: boolean
+  canManageCatalog?: boolean
+  canManageInventory?: boolean
+}
+
 export interface CreateShopRequest {
   name: string
   email: string
@@ -87,4 +95,16 @@ export interface CreateMeasurementRequest {
   inseam?: number
   neck?: number
   notes?: string
+}
+
+export interface CreateInventoryItemRequest {
+  name: string
+  sku?: string
+  description?: string
+  unit?: string
+  quantityOnHand?: number
+  reorderLevel?: number
+  costPrice?: number
+  sellingPrice?: number
+  isActive?: boolean
 }

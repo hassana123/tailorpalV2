@@ -1,4 +1,4 @@
-import { hasShopAccess } from '@/lib/server/authz'
+import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -49,6 +49,11 @@ export async function PATCH(
 
     const canAccess = await hasShopAccess(user.id, params.data.shopId)
     if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const canManageCatalog = await hasStaffPermission(user.id, params.data.shopId, 'manage_catalog')
+    if (!canManageCatalog) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
@@ -112,6 +117,11 @@ export async function DELETE(
 
     const canAccess = await hasShopAccess(user.id, params.data.shopId)
     if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const canManageCatalog = await hasStaffPermission(user.id, params.data.shopId, 'manage_catalog')
+    if (!canManageCatalog) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

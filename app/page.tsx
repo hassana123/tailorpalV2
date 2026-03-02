@@ -20,21 +20,33 @@ export default function HomePage() {
   const supabase = createClient()
 
   useEffect(() => {
-    checkAuth()
+    void checkAuth()
   }, [])
 
   const checkAuth = async () => {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) return
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('user_type, created_at, updated_at')
-      .eq('id', user.id)
-      .single()
-    if (requiresRoleSelection(profile))           router.push('/auth/choose-role')
-    else if (profile?.user_type === 'shop_owner') router.push('/dashboard/shop')
-    else if (profile?.user_type === 'staff')      router.push('/dashboard/staff')
-    else                                          router.push('/marketplace')
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser()
+      if (!user) return
+
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('user_type')
+        .eq('id', user.id)
+        .maybeSingle()
+
+      if (profileError && profileError.code !== 'PGRST116') {
+        return
+      }
+
+      if (requiresRoleSelection(profile)) router.replace('/auth/choose-role')
+      else if (profile?.user_type === 'shop_owner') router.replace('/dashboard/shop')
+      else if (profile?.user_type === 'staff') router.replace('/dashboard/staff')
+      else router.replace('/dashboard/customer')
+    } catch {
+      // Keep home page interactive if auth/profile checks fail transiently.
+    }
   }
 
   return (

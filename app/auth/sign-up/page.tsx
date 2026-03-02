@@ -1,7 +1,7 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
-import { getBrowserAppUrl } from '@/lib/utils/app-url'
+import { getAuthErrorMessage } from '@/lib/auth/errors'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
@@ -76,19 +76,20 @@ export default function SignUpPage() {
     setIsLoading(true)
     setError(null)
     try {
+      const redirectUrl = new URL('/auth/callback', window.location.origin)
+
       const { error } = await supabase.auth.signUp({
-        email,
+        email: email.trim(),
         password,
         options: {
-          emailRedirectTo: process.env.NEXT_PUBLIC_DEV_SUPABASE_REDIRECT_URL ||
-            new URL('/protected', getBrowserAppUrl()).toString(),
+          emailRedirectTo: redirectUrl.toString(),
         },
       })
       if (error) throw error
       toast.success('Account created. Check your email to continue.')
       router.push('/auth/sign-up-success')
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'An error occurred'
+      const message = getAuthErrorMessage(err, 'Unable to create account. Please try again.')
       setError(message)
       toast.error(message)
     } finally {
@@ -97,20 +98,25 @@ export default function SignUpPage() {
   }
 
   const handleGoogleSignUp = async () => {
-    const supabase = createClient()
     setGoogleLoading(true)
     setError(null)
     try {
-      const redirectUrl = new URL('/auth/callback', getBrowserAppUrl())
-      redirectUrl.searchParams.set('next', '/auth/choose-role')
-
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: redirectUrl.toString() },
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'signup', next: '/auth/choose-role' }),
       })
-      if (error) throw error
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; url?: string }
+        | null
+
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error || 'Failed to sign up with Google')
+      }
+
+      window.location.assign(payload.url)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to sign up with Google'
+      const message = getAuthErrorMessage(err, 'Failed to sign up with Google')
       setError(message)
       toast.error(message)
       setGoogleLoading(false)

@@ -1,10 +1,11 @@
 'use client'
 
 import { createClient } from '@/lib/supabase/client'
+import { getAuthErrorMessage } from '@/lib/auth/errors'
 import { requiresRoleSelection } from '@/lib/auth/role'
-import { getBrowserAppUrl } from '@/lib/utils/app-url'
+import { getSafeNextPath } from '@/lib/utils/app-url'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -20,6 +21,9 @@ export default function LoginPage() {
   const [isGoogleLoading, setGoogleLoading] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const rawNext = searchParams.get('next')
+  const nextPath = rawNext ? getSafeNextPath(rawNext, '/marketplace') : null
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -27,7 +31,10 @@ export default function LoginPage() {
     setIsLoading(true)
     setError(null)
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password })
+      const { error } = await supabase.auth.signInWithPassword({
+        email: email.trim(),
+        password,
+      })
       if (error) throw error
       const { data: { user } } = await supabase.auth.getUser()
       const { data: profile } = await supabase
@@ -38,6 +45,9 @@ export default function LoginPage() {
       if (requiresRoleSelection(profile)) {
         toast.success('Signed in. Please select your role.')
         router.push('/auth/choose-role')
+      } else if (nextPath) {
+        toast.success('Welcome back.')
+        router.push(nextPath)
       } else if (profile?.user_type === 'shop_owner') {
         toast.success('Welcome back.')
         router.push('/dashboard/shop')
@@ -46,10 +56,10 @@ export default function LoginPage() {
         router.push('/dashboard/staff')
       } else {
         toast.success('Welcome back.')
-        router.push('/marketplace')
+        router.push('/dashboard/customer')
       }
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Invalid email or password. Please try again.'
+      const message = getAuthErrorMessage(err, 'Invalid email or password. Please try again.')
       setError(message)
       toast.error(message)
     } finally {
@@ -58,18 +68,25 @@ export default function LoginPage() {
   }
 
   const handleGoogleLogin = async () => {
-    const supabase = createClient()
     setGoogleLoading(true)
     setError(null)
     try {
-      const redirectUrl = new URL('/auth/callback', getBrowserAppUrl())
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: 'google',
-        options: { redirectTo: redirectUrl.toString() },
+      const response = await fetch('/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ mode: 'login', ...(nextPath ? { next: nextPath } : {}) }),
       })
-      if (error) throw error
+      const payload = (await response.json().catch(() => null)) as
+        | { error?: string; url?: string }
+        | null
+
+      if (!response.ok || !payload?.url) {
+        throw new Error(payload?.error || 'Failed to sign in with Google')
+      }
+
+      window.location.assign(payload.url)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to sign in with Google'
+      const message = getAuthErrorMessage(err, 'Failed to sign in with Google')
       setError(message)
       toast.error(message)
       setGoogleLoading(false)

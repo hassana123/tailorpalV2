@@ -1,5 +1,5 @@
 import { generateGroqReply } from '@/lib/ai/groq'
-import { hasShopAccess } from '@/lib/server/authz'
+import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
 import { checkRateLimit } from '@/lib/server/rate-limit'
 import { createClient } from '@/lib/supabase/server'
 import { NextRequest, NextResponse } from 'next/server'
@@ -55,21 +55,41 @@ export async function POST(request: NextRequest) {
 
     // Add customer
     if (/^add customer\b/i.test(normalized)) {
+      const canManageCustomers = await hasStaffPermission(user.id, shopId, 'manage_customers')
+      if (!canManageCustomers) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return handleAddCustomer({ supabase, message, shopId, userId: user.id })
     }
 
     // Record measurements
     if (/^(record|add|save|take)\s+measurements?\s+for\b/i.test(normalized)) {
+      const canManageMeasurements = await hasStaffPermission(
+        user.id,
+        shopId,
+        'manage_measurements',
+      )
+      if (!canManageMeasurements) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return handleMeasurement({ supabase, message, shopId, userId: user.id })
     }
 
     // Create order
     if (/^create\s+order\s+for\b/i.test(normalized)) {
+      const canManageOrders = await hasStaffPermission(user.id, shopId, 'manage_orders')
+      if (!canManageOrders) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return handleCreateOrder({ supabase, message, shopId, userId: user.id })
     }
 
     // Update order status
     if (/^update\s+order\b/i.test(normalized)) {
+      const canManageOrders = await hasStaffPermission(user.id, shopId, 'manage_orders')
+      if (!canManageOrders) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return handleUpdateOrder({ supabase, message, shopId })
     }
 
@@ -102,11 +122,19 @@ export async function POST(request: NextRequest) {
 
     // Confirm pending delete
     if (/^confirm\s+delete\b/i.test(normalized)) {
+      const canManageCustomers = await hasStaffPermission(user.id, shopId, 'manage_customers')
+      if (!canManageCustomers) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return handleConfirmDelete({ supabase, userId: user.id, shopId })
     }
 
     // Delete customer
     if (/^delete\s+customer\b/i.test(normalized)) {
+      const canManageCustomers = await hasStaffPermission(user.id, shopId, 'manage_customers')
+      if (!canManageCustomers) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+      }
       return handleDeleteCustomer({ supabase, message, shopId, userId: user.id })
     }
 
@@ -695,7 +723,7 @@ function parseAddCustomerCommand(message: string) {
   if (!withoutPrefix) return null
 
   const emailMatch = withoutPrefix.match(/\bemail\s+([^\s]+@[^\s]+)\b/i)
-  const phoneMatch = withoutPrefix.match(/\bphone\s+([+\d][\d\s()\-]{4,})/i)
+  const phoneMatch = withoutPrefix.match(/\bphone\s+([+\d][\d\s()-]{4,})/i)
 
   let namePart = withoutPrefix
   if (emailMatch) namePart = namePart.replace(emailMatch[0], '')

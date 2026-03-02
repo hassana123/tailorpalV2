@@ -1,4 +1,4 @@
-
+/* eslint-disable @next/next/no-img-element */
 import Link from 'next/link'
 import {
  
@@ -29,7 +29,14 @@ interface Shop {
   latitude: number | null
   longitude: number | null
 }
-export  function ShopCard({ shop, featured = false }: { shop: Shop; featured?: boolean }) {
+interface ShopCardProps {
+  shop: Shop
+  featured?: boolean
+  detailsBasePath?: string
+}
+
+export  function ShopCard({ shop, featured = false, detailsBasePath = '/marketplace/shop' }: ShopCardProps) {
+  const detailsHref = `${detailsBasePath}/${shop.id}`
   const locationLabel =
     [shop.city, shop.state, shop.country].filter(Boolean).join(', ') ||
     shop.address ||
@@ -68,7 +75,7 @@ export  function ShopCard({ shop, featured = false }: { shop: Shop; featured?: b
         </div>
 
         {/* Name & description */}
-        <Link href={`/marketplace/shop/${shop.id}`}>
+        <Link href={detailsHref}>
           <h3 className="font-sans font-bold text-brand-ink text-base mb-1.5 line-clamp-1 group-hover:text-brand-gold transition-colors">
             {shop.name}
           </h3>
@@ -113,7 +120,7 @@ export  function ShopCard({ shop, featured = false }: { shop: Shop; featured?: b
               <span className="text-xs text-brand-stone">No reviews yet</span>
             )}
           </div>
-          <Link href={`/marketplace/shop/${shop.id}`} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-stone hover:text-brand-gold transition-colors">
+          <Link href={detailsHref} className="inline-flex items-center gap-1.5 text-xs font-semibold text-brand-stone hover:text-brand-gold transition-colors">
             View
             <ArrowRight size={14} className="group-hover:translate-x-0.5 transition-all duration-200" />
           </Link>

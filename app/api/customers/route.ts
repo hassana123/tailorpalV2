@@ -1,5 +1,6 @@
-import { hasShopAccess } from '@/lib/server/authz'
+import { hasStaffPermission, hasShopAccess } from '@/lib/server/authz'
 import { createClient } from '@/lib/supabase/server'
+//import { createAdminClient } from '@/lib/supabase/admin'
 import { CreateCustomerRequest } from '@/lib/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -39,6 +40,11 @@ export async function POST(request: NextRequest) {
     const payload = parsed.data
     const canAccess = await hasShopAccess(user.id, payload.shopId)
     if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const canManageCustomers = await hasStaffPermission(user.id, payload.shopId, 'manage_customers')
+    if (!canManageCustomers) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 

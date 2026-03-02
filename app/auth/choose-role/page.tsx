@@ -171,7 +171,7 @@ export default function ChooseRolePage() {
 
       if (selected === 'shop_owner') router.push('/dashboard/shop/setup')
       else if (selected === 'staff') router.push('/dashboard/staff/onboarding')
-      else router.push('/marketplace')
+      else router.push('/dashboard/customer')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An error occurred'
       setError(message)
