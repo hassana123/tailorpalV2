@@ -6,6 +6,11 @@ import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
 import {
+  extractMeasurementMaps,
+  formatMeasurementLabel,
+  sortMeasurementEntries,
+} from '@/lib/utils/measurement-records'
+import {
   Mail,
   Phone,
   MapPin,
@@ -37,8 +42,9 @@ interface Measurement {
   created_at: string
   notes: string | null
   status: string
-  standard_measurements: Record<string, number>
-  custom_measurements: Record<string, number>
+  standard_measurements?: Record<string, unknown> | null
+  custom_measurements?: Record<string, unknown> | null
+  [key: string]: unknown
 }
 
 interface CustomerDetailModalProps {
@@ -73,30 +79,12 @@ export function CustomerDetailModal({
         .from('measurements')
         .select('*')
         .eq('customer_id', customer.id)
+        .order('updated_at', { ascending: false })
         .order('created_at', { ascending: false })
 
       if (error) throw error
 
-      const normalized = (data || []).map((row: any) => ({
-        id: row.id,
-        customer_id: row.customer_id,
-        created_at: row.created_at,
-        notes: row.notes,
-        status: row.status,
-        // Handle both legacy columns and new JSONB columns
-        standard_measurements: row.standard_measurements || {
-          chest: row.chest,
-          waist: row.waist,
-          hip: row.hip,
-          shoulder_width: row.shoulder_width,
-          sleeve_length: row.sleeve_length,
-          inseam: row.inseam,
-          neck: row.neck,
-        },
-        custom_measurements: row.custom_measurements || {},
-      }))
-
-      setMeasurements(normalized)
+      setMeasurements((data || []) as Measurement[])
     } catch (err) {
       console.error('Error fetching measurements:', err)
     } finally {
@@ -220,10 +208,7 @@ export function CustomerDetailModal({
 }
 
 function MeasurementCard({ measurement }: { measurement: Measurement }) {
-  const entries = [
-    ...Object.entries(measurement.standard_measurements),
-    ...Object.entries(measurement.custom_measurements),
-  ]
+  const entries = sortMeasurementEntries(Object.entries(extractMeasurementMaps(measurement).all))
 
   return (
     <div className="bg-white rounded-xl border border-brand-border p-4">
@@ -251,7 +236,7 @@ function MeasurementCard({ measurement }: { measurement: Measurement }) {
           {entries.slice(0, 6).map(([key, value]) => (
             <div key={key} className="bg-brand-cream/50 rounded-lg px-2 py-1.5">
               <span className="text-[10px] text-brand-stone uppercase block truncate">
-                {key.replace(/_/g, ' ')}
+                {formatMeasurementLabel(key)}
               </span>
               <span className="text-sm font-semibold text-brand-ink">{value} cm</span>
             </div>

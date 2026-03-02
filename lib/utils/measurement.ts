@@ -1,137 +1,170 @@
-import { createClient } from '@/lib/supabase/server';
+import { createClient } from '@/lib/supabase/server'
+import { extractMeasurementMaps, sanitizeMeasurementMap } from '@/lib/utils/measurement-records'
 
 export interface Measurement {
-  id: string;
-  customer_id: string;
-  shop_id: string;
-  chest: number | null;
-  waist: number | null;
-  hip: number | null;
-  shoulder_width: number | null;
-  sleeve_length: number | null;
-  inseam: number | null;
-  neck: number | null;
-  notes: string | null;
-  status: 'pending' | 'completed';
-  created_at: string;
+  id: string
+  customer_id: string
+  shop_id: string
+  standard_measurements: Record<string, number>
+  custom_measurements: Record<string, number>
+  notes: string | null
+  status: 'pending' | 'completed'
+  created_by?: string
+  created_at: string
+  updated_at: string
 }
 
-/**
- * Get all measurements for a customer
- */
 export async function getCustomerMeasurements(customerId: string): Promise<Measurement[]> {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('measurements')
     .select('*')
     .eq('customer_id', customerId)
-    .order('created_at', { ascending: false });
+    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
 
   if (error) {
-    console.error('Error fetching measurements:', error);
-    return [];
+    console.error('Error fetching measurements:', error)
+    return []
   }
 
-  return data as Measurement[];
+  return (data ?? []) as Measurement[]
 }
 
-/**
- * Get latest measurement for a customer
- */
 export async function getLatestMeasurement(customerId: string): Promise<Measurement | null> {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
   const { data, error } = await supabase
     .from('measurements')
     .select('*')
     .eq('customer_id', customerId)
+    .order('updated_at', { ascending: false })
     .order('created_at', { ascending: false })
     .limit(1)
-    .single();
+    .maybeSingle()
 
   if (error && error.code !== 'PGRST116') {
-    console.error('Error fetching latest measurement:', error);
+    console.error('Error fetching latest measurement:', error)
   }
 
-  return data as Measurement | null;
+  return (data as Measurement | null) ?? null
 }
 
-/**
- * Create new measurement
- */
 export async function addMeasurement(
   customerId: string,
   shopId: string,
-  measurementData: Partial<Measurement>
+  measurementData: Partial<Measurement>,
 ): Promise<Measurement | null> {
-  const supabase = await createClient();
+  const supabase = await createClient()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
 
-  const { data, error } = await supabase
-    .from('measurements')
-    .insert([
-      {
-        customer_id: customerId,
-        shop_id: shopId,
-        chest: measurementData.chest,
-        waist: measurementData.waist,
-        hip: measurementData.hip,
-        shoulder_width: measurementData.shoulder_width,
-        sleeve_length: measurementData.sleeve_length,
-        inseam: measurementData.inseam,
-        neck: measurementData.neck,
-        notes: measurementData.notes,
-        status: measurementData.status || 'completed',
-      },
-    ])
-    .select()
-    .single();
+  const incomingStandard = sanitizeMeasurementMap(measurementData.standard_measurements)
+  const incomingCustom = sanitizeMeasurementMap(measurementData.custom_measurements)
 
-  if (error) {
-    console.error('Error adding measurement:', error);
+  if (Object.keys(incomingStandard).length === 0 && Object.keys(incomingCustom).length === 0) {
+    return null
   }
 
-  return data as Measurement | null;
+  const { data: existingRows, error: existingError } = await supabase
+    .from('measurements')
+    .select('*')
+    .eq('shop_id', shopId)
+    .eq('customer_id', customerId)
+    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (existingError) {
+    console.error('Error loading measurement:', existingError)
+    return null
+  }
+
+  const existing = existingRows?.[0]
+  const existingMaps = existing ? extractMeasurementMaps(existing) : { standard: {}, custom: {}, all: {} }
+  const basePayload = {
+    standard_measurements: {
+      ...existingMaps.standard,
+      ...incomingStandard,
+    },
+    custom_measurements: {
+      ...existingMaps.custom,
+      ...incomingCustom,
+    },
+    notes: measurementData.notes ?? existing?.notes ?? null,
+    status: measurementData.status ?? 'completed',
+    updated_at: new Date().toISOString(),
+  }
+
+  const query = existing
+    ? supabase
+        .from('measurements')
+        .update(basePayload)
+        .eq('id', existing.id)
+        .select('*')
+        .single()
+    : supabase
+        .from('measurements')
+        .insert([
+          {
+            customer_id: customerId,
+            shop_id: shopId,
+            created_by: measurementData.created_by ?? user?.id,
+            ...basePayload,
+          },
+        ])
+        .select('*')
+        .single()
+
+  const { data, error } = await query
+
+  if (error) {
+    console.error('Error adding measurement:', error)
+  }
+
+  return (data as Measurement | null) ?? null
 }
 
-/**
- * Update measurement
- */
 export async function updateMeasurement(
   measurementId: string,
-  updates: Partial<Measurement>
+  updates: Partial<Measurement>,
 ): Promise<Measurement | null> {
-  const supabase = await createClient();
+  const supabase = await createClient()
+
+  const patch: Partial<Measurement> = { ...updates, updated_at: new Date().toISOString() }
+
+  if (updates.standard_measurements) {
+    patch.standard_measurements = sanitizeMeasurementMap(updates.standard_measurements)
+  }
+  if (updates.custom_measurements) {
+    patch.custom_measurements = sanitizeMeasurementMap(updates.custom_measurements)
+  }
 
   const { data, error } = await supabase
     .from('measurements')
-    .update(updates)
+    .update(patch)
     .eq('id', measurementId)
     .select()
-    .single();
+    .single()
 
   if (error) {
-    console.error('Error updating measurement:', error);
+    console.error('Error updating measurement:', error)
   }
 
-  return data as Measurement | null;
+  return (data as Measurement | null) ?? null
 }
 
-/**
- * Delete measurement
- */
 export async function deleteMeasurement(measurementId: string): Promise<boolean> {
-  const supabase = await createClient();
+  const supabase = await createClient()
 
-  const { error } = await supabase
-    .from('measurements')
-    .delete()
-    .eq('id', measurementId);
+  const { error } = await supabase.from('measurements').delete().eq('id', measurementId)
 
   if (error) {
-    console.error('Error deleting measurement:', error);
-    return false;
+    console.error('Error deleting measurement:', error)
+    return false
   }
 
-  return true;
+  return true
 }

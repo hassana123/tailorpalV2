@@ -38,6 +38,14 @@ export const STANDARD_MEASUREMENTS: MeasurementDefinition[] = [
   { key: 'shoulder_to_waist', label: 'Shoulder to Waist', category: 'Full Body' },
 ]
 
+export const STANDARD_MEASUREMENT_KEYS = new Set(
+  STANDARD_MEASUREMENTS.map((measurement) => measurement.key),
+)
+
+export const STANDARD_MEASUREMENT_ORDER = new Map(
+  STANDARD_MEASUREMENTS.map((measurement, index) => [measurement.key, index]),
+)
+
 export const STANDARD_MEASUREMENT_LABELS = new Map(
   STANDARD_MEASUREMENTS.map((measurement) => [measurement.key, measurement.label]),
 )
