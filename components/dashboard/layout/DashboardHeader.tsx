@@ -35,7 +35,7 @@ export function DashboardHeader({
     : (shopName?.[0]?.toUpperCase() ?? 'S')
 
   return (
-    <header className="sticky top-0 z-20 bg-white border-b border-brand-border h-16 flex items-center px-4 lg:px-6 gap-3 lg:gap-4">
+    <header className="sticky top-0 z-20 bg-white border-b border-brand-border h-16 flex items-center justify-between px-4 lg:px-6">
       {/* Mobile Menu Button */}
       <button 
         onClick={onMenuClick}

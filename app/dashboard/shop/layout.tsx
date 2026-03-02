@@ -116,7 +116,7 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
             { href: `/dashboard/shop/${shopId}/orders`,            label: 'Orders',          icon: ShoppingCart    },
             { href: `/dashboard/shop/${shopId}/catalog`,           label: 'Catalog',         icon: Package         },
             { href: `/dashboard/shop/${shopId}/measurements`,      label: 'Measurements',    icon: Ruler           },
-            { href: `/dashboard/shop/${shopId}/voice-assistant`,   label: 'Voice',           icon: Mic             },
+            { href: `/dashboard/shop/${shopId}/voice-assistant`,   label: 'Voice Assistant',           icon: Mic             },
             { href: `/dashboard/shop/${shopId}/staff`,             label: 'Staff',           icon: Users           },
             { href: `/dashboard/shop/${shopId}/settings`,          label: 'Settings',        icon: Settings        },
           ]
