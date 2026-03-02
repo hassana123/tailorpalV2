@@ -2,6 +2,7 @@ import { generateGroqReply } from '@/lib/ai/groq'
 import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
 import { checkRateLimit } from '@/lib/server/rate-limit'
 import { createClient } from '@/lib/supabase/server'
+import { extractMeasurementMaps, sanitizeMeasurementMap } from '@/lib/utils/measurement-records'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
@@ -277,25 +278,63 @@ async function handleMeasurement({
     })
   }
 
-  const { error } = await supabase.from('measurements').insert([
-    {
-      shop_id: shopId,
-      customer_id: customer.id,
-      chest: parsed.chest ?? null,
-      waist: parsed.waist ?? null,
-      hip: parsed.hip ?? null,
-      shoulder_width: parsed.shoulderWidth ?? null,
-      sleeve_length: parsed.sleeveLength ?? null,
-      inseam: parsed.inseam ?? null,
-      neck: parsed.neck ?? null,
-      notes: parsed.notes ?? null,
-      status: 'completed',
-      created_by: userId,
+  const incomingStandard = sanitizeMeasurementMap({
+    chest: parsed.chest,
+    waist: parsed.waist,
+    hip: parsed.hip,
+    shoulder_width: parsed.shoulderWidth,
+    sleeve_length: parsed.sleeveLength,
+    inseam: parsed.inseam,
+    neck: parsed.neck,
+  })
+
+  const { data: existingRows, error: existingError } = await supabase
+    .from('measurements')
+    .select('*')
+    .eq('shop_id', shopId)
+    .eq('customer_id', customer.id)
+    .order('updated_at', { ascending: false })
+    .order('created_at', { ascending: false })
+    .limit(1)
+
+  if (existingError) {
+    console.error('[voice/process] handleMeasurement load error:', existingError)
+    return NextResponse.json({ error: 'A database error occurred.' }, { status: 500 })
+  }
+
+  const existing = existingRows?.[0]
+  const existingMaps = existing ? extractMeasurementMaps(existing) : { standard: {}, custom: {}, all: {} }
+  const writePayload = {
+    standard_measurements: {
+      ...existingMaps.standard,
+      ...incomingStandard,
     },
-  ])
+    custom_measurements: existingMaps.custom,
+    notes: parsed.notes ?? existing?.notes ?? null,
+    status: 'completed',
+    updated_at: new Date().toISOString(),
+  }
+
+  const writeQuery = existing
+    ? supabase
+        .from('measurements')
+        .update(writePayload)
+        .eq('id', existing.id)
+    : supabase
+        .from('measurements')
+        .insert([
+          {
+            shop_id: shopId,
+            customer_id: customer.id,
+            created_by: userId,
+            ...writePayload,
+          },
+        ])
+
+  const { error } = await writeQuery
 
   if (error) {
-    console.error('[voice/process] handleMeasurement DB error:', error)
+    console.error('[voice/process] handleMeasurement save error:', error)
     return NextResponse.json({ error: 'A database error occurred.' }, { status: 500 })
   }
 

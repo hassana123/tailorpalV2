@@ -1,19 +1,17 @@
 import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
 import { createClient } from '@/lib/supabase/server'
 import { CreateMeasurementRequest } from '@/lib/types'
+import { extractMeasurementMaps, sanitizeMeasurementMap } from '@/lib/utils/measurement-records'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
+
+const measurementMapSchema = z.record(z.string().min(1), z.number().positive())
 
 const payloadSchema = z.object({
   shopId: z.string().uuid(),
   customerId: z.string().uuid(),
-  chest: z.number().positive().optional(),
-  waist: z.number().positive().optional(),
-  hip: z.number().positive().optional(),
-  shoulderWidth: z.number().positive().optional(),
-  sleeveLength: z.number().positive().optional(),
-  inseam: z.number().positive().optional(),
-  neck: z.number().positive().optional(),
+  standardMeasurements: measurementMapSchema.optional(),
+  customMeasurements: measurementMapSchema.optional(),
   notes: z.string().optional(),
 })
 
@@ -52,33 +50,69 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
-    const { data, error } = await supabase
+    const standardMeasurements = sanitizeMeasurementMap(payload.standardMeasurements)
+    const customMeasurements = sanitizeMeasurementMap(payload.customMeasurements)
+
+    if (Object.keys(standardMeasurements).length === 0 && Object.keys(customMeasurements).length === 0) {
+      return NextResponse.json({ error: 'Please provide at least one measurement value' }, { status: 400 })
+    }
+
+    const { data: existingRows, error: existingError } = await supabase
       .from('measurements')
-      .insert([
-        {
-          shop_id: payload.shopId,
-          customer_id: payload.customerId,
-          chest: payload.chest ?? null,
-          waist: payload.waist ?? null,
-          hip: payload.hip ?? null,
-          shoulder_width: payload.shoulderWidth ?? null,
-          sleeve_length: payload.sleeveLength ?? null,
-          inseam: payload.inseam ?? null,
-          neck: payload.neck ?? null,
-          notes: payload.notes ?? null,
-          status: 'completed',
-          created_by: user.id,
-        },
-      ])
       .select('*')
-      .single()
+      .eq('shop_id', payload.shopId)
+      .eq('customer_id', payload.customerId)
+      .order('updated_at', { ascending: false })
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (existingError) {
+      console.error('Error loading existing measurement:', existingError)
+      return NextResponse.json({ error: 'Failed to create measurement' }, { status: 500 })
+    }
+
+    const existing = existingRows?.[0]
+    const existingMaps = existing ? extractMeasurementMaps(existing) : { standard: {}, custom: {}, all: {} }
+    const mergedStandard = { ...existingMaps.standard, ...standardMeasurements }
+    const mergedCustom = { ...existingMaps.custom, ...customMeasurements }
+    const notes = payload.notes?.trim() || existing?.notes || null
+
+    const basePayload = {
+      standard_measurements: mergedStandard,
+      custom_measurements: mergedCustom,
+      notes,
+      status: 'completed' as const,
+      updated_at: new Date().toISOString(),
+    }
+
+    const query = existing
+      ? supabase
+          .from('measurements')
+          .update(basePayload)
+          .eq('id', existing.id)
+          .select('*')
+          .single()
+      : supabase
+          .from('measurements')
+          .insert([
+            {
+              shop_id: payload.shopId,
+              customer_id: payload.customerId,
+              ...basePayload,
+              created_by: user.id,
+            },
+          ])
+          .select('*')
+          .single()
+
+    const { data, error } = await query
 
     if (error) {
       console.error('Error creating measurement:', error)
       return NextResponse.json({ error: 'Failed to create measurement' }, { status: 500 })
     }
 
-    return NextResponse.json({ measurement: data }, { status: 201 })
+    return NextResponse.json({ measurement: data }, { status: existing ? 200 : 201 })
   } catch (error) {
     console.error('Error in measurements POST:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
