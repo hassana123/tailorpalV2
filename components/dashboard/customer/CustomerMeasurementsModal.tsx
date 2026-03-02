@@ -79,7 +79,6 @@ export function CustomerMeasurementsModal({
   const [showPicker, setShowPicker] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const supabase = createClient()
 
   const toggleMeasurementField = (key: string) => {
     setSelectedMeasurements((prev) => {
@@ -125,27 +124,23 @@ export function CustomerMeasurementsModal({
     try {
       setIsSubmitting(true)
 
-      const legacyFields: Record<string, number | null> = {
-        chest: standardObj.chest ?? null,
-        waist: standardObj.waist ?? null,
-        hip: standardObj.hip ?? null,
-        shoulder_width: standardObj.shoulder_width ?? null,
-        sleeve_length: standardObj.sleeve_length ?? null,
-        inseam: standardObj.inseam ?? null,
-        neck: standardObj.neck ?? null,
+      // Use API to create/update measurements
+      const response = await fetch('/api/measurements', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId,
+          customerId: customer.id,
+          standardMeasurements: standardObj,
+          customMeasurements: customObj,
+          notes: measurementNotes || undefined,
+        }),
+      })
+
+      if (!response.ok) {
+        const payload = await response.json()
+        throw new Error(payload.error || 'Failed to save measurements')
       }
-
-      const { error } = await supabase.from('measurements').insert([
-        {
-          shop_id: shopId,
-          customer_id: customer.id,
-          ...legacyFields,
-          notes: measurementNotes || null,
-          status: 'completed',
-        },
-      ])
-
-      if (error) throw error
 
       toast.success('Measurements saved successfully!')
       onOpenChange(false)
@@ -157,7 +152,7 @@ export function CustomerMeasurementsModal({
       setShowPicker(false)
     } catch (err) {
       console.error('Error saving measurement:', err)
-      toast.error('Failed to save measurements')
+      toast.error(err instanceof Error ? err.message : 'Failed to save measurements')
     } finally {
       setIsSubmitting(false)
     }

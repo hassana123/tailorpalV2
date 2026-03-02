@@ -87,13 +87,8 @@ export interface CreateOrderRequest {
 export interface CreateMeasurementRequest {
   shopId: string
   customerId: string
-  chest?: number
-  waist?: number
-  hip?: number
-  shoulderWidth?: number
-  sleeveLength?: number
-  inseam?: number
-  neck?: number
+  standardMeasurements?: Record<string, number>
+  customMeasurements?: Record<string, number>
   notes?: string
 }
 

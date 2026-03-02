@@ -64,13 +64,8 @@ interface Measurement {
   id: string
   shop_id: string
   customer_id: string
-  chest?: number | null
-  waist?: number | null
-  hip?: number | null
-  shoulder_width?: number | null
-  sleeve_length?: number | null
-  inseam?: number | null
-  neck?: number | null
+  standard_measurements: Record<string, number>
+  custom_measurements: Record<string, number>
   notes?: string | null
   status: 'pending' | 'completed'
   created_at: string
@@ -129,12 +124,36 @@ export default function MeasurementsPage() {
       if (measurementsResponse.error) throw measurementsResponse.error
       if (customersResponse.error) throw customersResponse.error
 
-      const normalizedMeasurements = (measurementsResponse.data ?? []).map((measurement) => {
+      const normalizedMeasurements = (measurementsResponse.data ?? []).map((measurement: any) => {
         const relation = measurement.customers as
           | Measurement['customers']
           | Array<NonNullable<Measurement['customers']>>
         const customer = Array.isArray(relation) ? relation[0] ?? null : relation
-        return { ...measurement, customers: customer } as Measurement
+        
+        // Handle both legacy columns and new JSONB columns
+        const standardMeasurements = measurement.standard_measurements || {}
+        const customMeasurements = measurement.custom_measurements || {}
+        
+        // Also support legacy columns
+        const legacyStandard = {
+          chest: measurement.chest,
+          waist: measurement.waist,
+          hip: measurement.hip,
+          shoulder_width: measurement.shoulder_width,
+          sleeve_length: measurement.sleeve_length,
+          inseam: measurement.inseam,
+          neck: measurement.neck,
+        }
+        
+        // Merge legacy with JSONB (JSONB takes precedence)
+        const mergedStandard = { ...legacyStandard, ...standardMeasurements }
+        
+        return { 
+          ...measurement, 
+          customers: customer,
+          standard_measurements: mergedStandard,
+          custom_measurements: customMeasurements,
+        } as Measurement
       })
 
       setMeasurements(normalizedMeasurements)
@@ -212,13 +231,8 @@ export default function MeasurementsPage() {
         body: JSON.stringify({
           shopId,
           customerId: selectedCustomerId,
-          chest: standardObj.chest,
-          waist: standardObj.waist,
-          hip: standardObj.hip,
-          shoulderWidth: standardObj.shoulder_width,
-          sleeveLength: standardObj.sleeve_length,
-          inseam: standardObj.inseam,
-          neck: standardObj.neck,
+          standardMeasurements: standardObj,
+          customMeasurements: customObj,
           notes: notes || undefined,
         }),
       })
@@ -514,48 +528,21 @@ export default function MeasurementsPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 text-sm">
-                    {measurement.chest && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Chest</span>
-                        <span className="font-medium">{measurement.chest} cm</span>
-                      </div>
-                    )}
-                    {measurement.waist && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Waist</span>
-                        <span className="font-medium">{measurement.waist} cm</span>
-                      </div>
-                    )}
-                    {measurement.hip && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Hip</span>
-                        <span className="font-medium">{measurement.hip} cm</span>
-                      </div>
-                    )}
-                    {measurement.neck && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Neck</span>
-                        <span className="font-medium">{measurement.neck} cm</span>
-                      </div>
-                    )}
-                    {measurement.shoulder_width && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Shoulder</span>
-                        <span className="font-medium">{measurement.shoulder_width} cm</span>
-                      </div>
-                    )}
-                    {measurement.sleeve_length && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Sleeve</span>
-                        <span className="font-medium">{measurement.sleeve_length} cm</span>
-                      </div>
-                    )}
-                    {measurement.inseam && (
-                      <div className="bg-muted/40 rounded px-2 py-1">
-                        <span className="text-xs text-muted-foreground block">Inseam</span>
-                        <span className="font-medium">{measurement.inseam} cm</span>
-                      </div>
-                    )}
+                    {/* Map through all available measurements from JSON fields */}
+                    {Object.entries({
+                      ...(measurement.standard_measurements || {}),
+                      ...(measurement.custom_measurements || {}),
+                    }).map(([key, value]) => {
+                      if (value == null || value === undefined) return null
+                      const label = STANDARD_MEASUREMENTS.find(m => m.key === key)?.label 
+                        || key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+                      return (
+                        <div key={key} className="bg-muted/40 rounded px-2 py-1">
+                          <span className="text-xs text-muted-foreground block">{label}</span>
+                          <span className="font-medium">{value} cm</span>
+                        </div>
+                      )
+                    })}
                   </div>
                   {measurement.notes && (
                     <p className="text-xs text-muted-foreground mt-2">Notes: {measurement.notes}</p>

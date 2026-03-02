@@ -83,7 +83,16 @@ export function CustomerDetailModal({
         created_at: row.created_at,
         notes: row.notes,
         status: row.status,
-        standard_measurements: row.standard_measurements || {},
+        // Handle both legacy columns and new JSONB columns
+        standard_measurements: row.standard_measurements || {
+          chest: row.chest,
+          waist: row.waist,
+          hip: row.hip,
+          shoulder_width: row.shoulder_width,
+          sleeve_length: row.sleeve_length,
+          inseam: row.inseam,
+          neck: row.neck,
+        },
         custom_measurements: row.custom_measurements || {},
       }))
 
