@@ -75,13 +75,13 @@ export function InputPanel({
         >
           <MicOff size={16} />
           <span className="flex items-center gap-1.5">
-            {isSpeaking ? 'Speaking...' : autoSend ? 'Listening - sends after 5s pause' : 'Listening - tap to stop'}
+            {isSpeaking ? 'Speaking...' : autoSend ? 'Listening - sends after 2.5s pause' : 'Listening - tap to stop'}
           </span>
         </button>
       )}
 
       <p className="text-[10px] text-brand-stone text-center leading-relaxed">
-        Auto sends after 5s pause. Loop restarts listening after each reply. Say{' '}
+        Auto sends after 2.5s pause. Loop restarts listening after each reply. Say{' '}
         <strong className="text-brand-charcoal">"help"</strong> for quick guidance.
       </p>
     </div>

@@ -39,10 +39,16 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     onAutoSend: (text) => sendCommand(text),
   })
 
-  const { isSpeaking, speak } = useVoiceSynthesis(true, () => {
-    if (continuousMode) {
+  const finishResponseCycle = useCallback((shouldResume: boolean) => {
+    setIsSending(false)
+    isSendingRef.current = false
+    if (continuousMode && shouldResume) {
       resumeListening()
     }
+  }, [continuousMode, resumeListening])
+
+  const { isSpeaking, speak } = useVoiceSynthesis(true, () => {
+    finishResponseCycle(true)
   })
 
   useEffect(() => {
@@ -60,16 +66,14 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     if (!text || isSendingRef.current) return
 
     clearSilenceTimer()
-
-    let shouldResumeWithoutSpeech = false
+    pauseListening()
+    let startedSpeech = false
 
     setIsSending(true)
     isSendingRef.current = true
     pendingTranscriptRef.current = ''
     setTranscript('')
     setMessages((prev) => [...prev.slice(-MAX_MESSAGES), { id: crypto.randomUUID(), role: 'user', text, timestamp: new Date() }])
-
-    if (isListening) pauseListening()
 
     try {
       const response = await fetch('/api/voice/process', {
@@ -80,19 +84,17 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
       const payload = await response.json()
       const reply = typeof payload?.reply === 'string' ? payload.reply : payload?.error ?? 'I could not process that command.'
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }])
-      shouldResumeWithoutSpeech = !speak(reply)
+      startedSpeech = speak(reply)
     } catch {
       const reply = 'Request failed. Please check your connection and try again.'
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }])
-      shouldResumeWithoutSpeech = !speak(reply)
+      startedSpeech = speak(reply)
     } finally {
-      setIsSending(false)
-      isSendingRef.current = false
-      if (continuousMode && shouldResumeWithoutSpeech) {
-        resumeListening()
+      if (!startedSpeech) {
+        finishResponseCycle(true)
       }
     }
-  }, [clearSilenceTimer, continuousMode, isListening, pauseListening, pendingTranscriptRef, resumeListening, setTranscript, shopId, speak])
+  }, [clearSilenceTimer, finishResponseCycle, pauseListening, pendingTranscriptRef, setTranscript, shopId, speak])
 
   const clearHistory = () => {
     clearSilenceTimer()
