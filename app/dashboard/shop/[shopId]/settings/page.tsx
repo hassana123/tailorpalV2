@@ -60,9 +60,9 @@ function SettingsSection({
   children: React.ReactNode
 }) {
   return (
-    <div className="bg-white rounded-[2rem] border border-brand-border/60 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-[2rem] border border-brand-border/60 shadow-sm overflow-visible">
       {/* Section header */}
-      <div className="flex items-start gap-4 px-7 pt-7 pb-5 border-b border-brand-border/50">
+      <div className="flex items-start gap-4 px-5 sm:px-7 pt-6 sm:pt-7 pb-4 sm:pb-5 border-b border-brand-border/50">
         <div className="w-10 h-10 rounded-xl bg-brand-gold/10 flex items-center justify-center flex-shrink-0">
           <Icon size={18} className="text-brand-gold" />
         </div>
@@ -73,7 +73,7 @@ function SettingsSection({
           )}
         </div>
       </div>
-      <div className="px-7 py-6">{children}</div>
+      <div className="px-5 sm:px-7 py-5 sm:py-6">{children}</div>
     </div>
   )
 }
@@ -285,10 +285,10 @@ export default function ShopSettingsPage() {
 
   return (
     <div className="min-h-screen bg-brand-cream">
-      <div className="md:w-[90%] md:px-0 px-4  mx-auto   py-8 space-y-5">
+      <div className="w-full max-w-6xl mx-auto px-4 sm:px-6 lg:px-0 py-6 sm:py-8 space-y-5">
 
         {/* ── Page title ─────────────────────────────────────────────────── */}
-        <div className="flex items-start justify-between gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3 sm:gap-4">
           <div>
             <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">
               Dashboard
@@ -305,7 +305,7 @@ export default function ShopSettingsPage() {
             variant="ghost"
             size="sm"
             onClick={() => router.push(`/dashboard/shop/${shopId}`)}
-            className="text-brand-stone hover:text-brand-ink flex items-center gap-1.5 mt-1"
+            className="text-brand-stone hover:text-brand-ink flex items-center gap-1.5 mt-0 sm:mt-1 self-start"
           >
             <ChevronLeft size={15} />
             Back
@@ -357,7 +357,7 @@ export default function ShopSettingsPage() {
           title="Location"
           description="Help customers find your physical shop"
         >
-          <div className="space-y-4">
+          <div className="space-y-4 relative z-20">
             <LocationHierarchyFields
               country={form.country}
               state={form.state}

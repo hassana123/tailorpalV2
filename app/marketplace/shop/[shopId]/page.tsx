@@ -7,7 +7,8 @@ import { ShopProfileContent } from '@/components/marketplace/ShopProfileContent'
 
 export default function ShopProfilePage() {
   const params = useParams()
-  const shopId = params.shopId as string
+  const rawShopId = params.shopId
+  const shopId = (Array.isArray(rawShopId) ? rawShopId[0] : rawShopId) ?? ''
 
   return (
     <div className="min-h-screen bg-brand-cream">

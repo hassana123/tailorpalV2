@@ -1,12 +1,33 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
-import { createClient } from '@/lib/supabase/client'
-import type { MarketplaceShop, MarketplaceShopWithRatings } from '@/lib/marketplace/types'
+import type { MarketplaceShop } from '@/lib/marketplace/types'
+
+type MarketplaceShopsResponse = {
+  shops?: MarketplaceShop[]
+  error?: string
+}
+
+const MARKETPLACE_SHOPS_API = '/api/marketplace/shops'
+
+async function fetchMarketplaceShops(query?: string) {
+  const trimmed = query?.trim() ?? ''
+  const url = trimmed
+    ? `${MARKETPLACE_SHOPS_API}?q=${encodeURIComponent(trimmed)}`
+    : MARKETPLACE_SHOPS_API
+
+  const response = await fetch(url, { cache: 'no-store' })
+  const payload = (await response.json().catch(() => null)) as MarketplaceShopsResponse | null
+
+  if (!response.ok || !payload?.shops) {
+    throw new Error(payload?.error || 'Failed to load shops')
+  }
+
+  return payload.shops
+}
 
 export function useMarketplaceShops() {
-  const supabase = useMemo(() => createClient(), [])
   const [allShops, setAllShops] = useState<MarketplaceShop[]>([])
   const [featuredShops, setFeaturedShops] = useState<MarketplaceShop[]>([])
   const [displayed, setDisplayed] = useState<MarketplaceShop[]>([])
@@ -17,21 +38,8 @@ export function useMarketplaceShops() {
   const fetchShops = useCallback(async () => {
     try {
       setLoading(true)
-      const { data, error } = await supabase
-        .from('shops')
-        .select('*, shop_ratings(rating)')
-        .order('created_at', { ascending: false })
-
-      if (error) throw error
-
-      const processed = ((data || []) as MarketplaceShopWithRatings[]).map((shop) => {
-        const ratings = shop.shop_ratings || []
-        const averageRating = ratings.length
-          ? parseFloat((ratings.reduce((sum, row) => sum + row.rating, 0) / ratings.length).toFixed(1))
-          : null
-
-        return { ...shop, rating: averageRating, review_count: ratings.length }
-      })
+      const shops = await fetchMarketplaceShops()
+      const processed = shops
 
       setAllShops(processed)
       setDisplayed(processed)
@@ -41,7 +49,7 @@ export function useMarketplaceShops() {
     } finally {
       setLoading(false)
     }
-  }, [supabase])
+  }, [])
 
   useEffect(() => {
     void fetchShops()
@@ -57,29 +65,15 @@ export function useMarketplaceShops() {
 
       setSearching(true)
       try {
-        const { data, error } = await supabase
-          .from('shops')
-          .select('*')
-          .or(
-            `name.ilike.%${query}%,description.ilike.%${query}%,city.ilike.%${query}%,state.ilike.%${query}%,country.ilike.%${query}%,address.ilike.%${query}%`,
-          )
-
-        if (error) throw error
-
-        setDisplayed(
-          ((data || []) as MarketplaceShop[]).map((shop) => ({
-            ...shop,
-            rating: null,
-            review_count: 0,
-          })),
-        )
+        const shops = await fetchMarketplaceShops(query)
+        setDisplayed(shops)
       } catch {
         toast.error('Search failed. Please try again.')
       } finally {
         setSearching(false)
       }
     },
-    [allShops, supabase],
+    [allShops],
   )
 
   const clearSearch = useCallback(() => {

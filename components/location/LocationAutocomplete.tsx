@@ -43,11 +43,27 @@ export function LocationAutocomplete({
   const [suggestions, setSuggestions] = useState<LocationSuggestion[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [open, setOpen] = useState(false)
+  const [lockedSelection, setLockedSelection] = useState<string | null>(null)
+
+  const normalizedValue = value.trim()
+  const isSelectionLocked =
+    lockedSelection !== null && normalizedValue === lockedSelection
 
   const shouldSearch = useMemo(
-    () => value.trim().length >= MIN_QUERY_LENGTH,
-    [value],
+    () => normalizedValue.length >= MIN_QUERY_LENGTH && !isSelectionLocked,
+    [normalizedValue, isSelectionLocked],
   )
+
+  useEffect(() => {
+    if (!normalizedValue) {
+      setLockedSelection(null)
+      return
+    }
+
+    if (lockedSelection && normalizedValue !== lockedSelection) {
+      setLockedSelection(null)
+    }
+  }, [normalizedValue, lockedSelection])
 
   useEffect(() => {
     if (!shouldSearch) {
@@ -104,9 +120,15 @@ export function LocationAutocomplete({
         value={value}
         placeholder={placeholder}
         disabled={disabled}
-        onChange={(event) => onValueChange(event.target.value)}
+        onChange={(event) => {
+          const nextValue = event.target.value
+          if (lockedSelection && nextValue.trim() !== lockedSelection) {
+            setLockedSelection(null)
+          }
+          onValueChange(nextValue)
+        }}
         onFocus={() => {
-          if (suggestions.length > 0) {
+          if (suggestions.length > 0 && !isSelectionLocked) {
             setOpen(true)
           }
         }}
@@ -120,7 +142,7 @@ export function LocationAutocomplete({
       )}
 
       {open && suggestions.length > 0 && (
-        <div className="absolute z-20 mt-2 w-full rounded-md border bg-background shadow-md">
+        <div className="absolute z-[90] mt-2 w-full max-h-72 overflow-y-auto rounded-md border bg-background shadow-lg">
           {suggestions.map((suggestion) => (
             <button
               key={`${suggestion.displayName}-${suggestion.lat}-${suggestion.lon}`}
@@ -129,6 +151,7 @@ export function LocationAutocomplete({
               onMouseDown={() => {
                 // Fill the input with the exact selected suggestion text.
                 onValueChange(suggestion.displayName)
+                setLockedSelection(suggestion.displayName.trim())
                 onSelect(suggestion)
                 setOpen(false)
               }}

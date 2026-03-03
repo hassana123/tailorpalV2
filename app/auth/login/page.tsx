@@ -70,27 +70,9 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError(null)
-    try {
-      const response = await fetch('/api/auth/google', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ mode: 'login', ...(nextPath ? { next: nextPath } : {}) }),
-      })
-      const payload = (await response.json().catch(() => null)) as
-        | { error?: string; url?: string }
-        | null
-
-      if (!response.ok || !payload?.url) {
-        throw new Error(payload?.error || 'Failed to sign in with Google')
-      }
-
-      window.location.assign(payload.url)
-    } catch (err: unknown) {
-      const message = getAuthErrorMessage(err, 'Failed to sign in with Google')
-      setError(message)
-      toast.error(message)
-      setGoogleLoading(false)
-    }
+    const next = encodeURIComponent(nextPath ?? '/dashboard/customer')
+    const origin = encodeURIComponent(window.location.origin)
+    window.location.assign(`/api/auth/google?mode=login&next=${next}&origin=${origin}`)
   }
 
   const busy = isLoading || isGoogleLoading

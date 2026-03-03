@@ -5,7 +5,8 @@ import { ShopProfileContent } from '@/components/marketplace/ShopProfileContent'
 
 export default function CustomerMarketplaceShopDetailPage() {
   const params = useParams()
-  const shopId = params.shopId as string
+  const rawShopId = params.shopId
+  const shopId = (Array.isArray(rawShopId) ? rawShopId[0] : rawShopId) ?? ''
 
   return (
     <ShopProfileContent

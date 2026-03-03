@@ -63,6 +63,13 @@ interface CatalogItem {
   is_active: boolean
 }
 
+interface ShopDetailsResponse {
+  shop?: Shop
+  reviews?: Review[]
+  catalogItems?: CatalogItem[]
+  error?: string
+}
+
 interface ShopProfileContentProps {
   shopId: string
   backHref: string
@@ -198,26 +205,27 @@ export function ShopProfileContent({
   const fetchShop = async () => {
     try {
       setLoading(true)
-      const [authRes, shopRes, reviewsRes, catalogRes] = await Promise.all([
+      setError(null)
+      if (!shopId) {
+        throw new Error('Invalid shop ID')
+      }
+
+      const [authRes, detailsRes] = await Promise.all([
         supabase.auth.getUser(),
-        supabase.from('shops').select('*').eq('id', shopId).single(),
-        supabase
-          .from('shop_ratings')
-          .select('*')
-          .eq('shop_id', shopId)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('shop_catalog_items')
-          .select('*')
-          .eq('shop_id', shopId)
-          .eq('is_active', true)
-          .order('created_at', { ascending: false }),
+        fetch(`/api/marketplace/shops/${encodeURIComponent(shopId)}`, {
+          cache: 'no-store',
+        }),
       ])
-      if (shopRes.error) throw shopRes.error
+      const details = (await detailsRes.json().catch(() => null)) as ShopDetailsResponse | null
+
+      if (!detailsRes.ok || !details?.shop) {
+        throw new Error(details?.error || 'Failed to load shop details.')
+      }
+
       setIsAuthenticated(Boolean(authRes.data.user))
-      const nextShop = shopRes.data as Shop
-      const nextReviews = (reviewsRes.data ?? []) as Review[]
-      const nextCatalog = catalogRes.error ? [] : ((catalogRes.data ?? []) as CatalogItem[])
+      const nextShop = details.shop
+      const nextReviews = details.reviews ?? []
+      const nextCatalog = details.catalogItems ?? []
       setShop(nextShop)
       setReviews(nextReviews)
       setCatalogItems(nextCatalog)

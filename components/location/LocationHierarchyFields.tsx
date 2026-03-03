@@ -3,6 +3,13 @@
 import { useEffect, useState } from 'react'
 import { Label } from '@/components/ui/label'
 import { Input } from '@/components/ui/input'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 
 interface LocationHierarchyFieldsProps {
   country: string
@@ -15,6 +22,7 @@ interface LocationHierarchyFieldsProps {
 }
 
 type Level = 'country' | 'state' | 'city'
+const EMPTY_VALUE = '__empty__'
 
 async function fetchOptions(level: Level, country?: string, state?: string) {
   const query = new URLSearchParams({
@@ -87,26 +95,32 @@ export function LocationHierarchyFields({
     <>
       <div className="grid gap-2">
         <Label htmlFor="country">Country{required ? ' *' : ''}</Label>
-        <select
-          id="country"
-          value={country}
-          required={required}
-          onChange={(event) => {
-            const value = event.target.value
-            onCountryChange(value)
-            onStateChange('')
-            onCityChange('')
-          }}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
-        >
-          <option value="">{loadingCountries ? 'Loading countries...' : 'Select country'}</option>
-          {countries.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        {!loadingCountries && countries.length === 0 ? (
+        {countries.length > 0 ? (
+          <Select
+            value={country || EMPTY_VALUE}
+            onValueChange={(value) => {
+              const nextCountry = value === EMPTY_VALUE ? '' : value
+              onCountryChange(nextCountry)
+              onStateChange('')
+              onCityChange('')
+            }}
+            disabled={loadingCountries}
+          >
+            <SelectTrigger id="country" className="h-10">
+              <SelectValue
+                placeholder={loadingCountries ? 'Loading countries...' : 'Select country'}
+              />
+            </SelectTrigger>
+            <SelectContent className="z-[80] max-h-72">
+              <SelectItem value={EMPTY_VALUE}>Select country</SelectItem>
+              {countries.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : !loadingCountries ? (
           <Input
             placeholder="Type country manually"
             value={country}
@@ -117,37 +131,36 @@ export function LocationHierarchyFields({
             }}
             required={required}
           />
-        ) : null}
+        ) : (
+          <Input value="Loading countries..." disabled />
+        )}
       </div>
 
       <div className="grid gap-2">
         <Label htmlFor="state">State{required ? ' *' : ''}</Label>
-        <select
-          id="state"
-          value={state}
-          required={required && states.length > 0}
-          disabled={!country}
-          onChange={(event) => {
-            const value = event.target.value
-            onStateChange(value)
-            onCityChange('')
-          }}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-        >
-          <option value="">
-            {!country
-              ? 'Select country first'
-              : loadingStates
-                ? 'Loading states...'
-                : 'Select state'}
-          </option>
-          {states.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        {country && !loadingStates && states.length === 0 ? (
+        {country && states.length > 0 ? (
+          <Select
+            value={state || EMPTY_VALUE}
+            onValueChange={(value) => {
+              const nextState = value === EMPTY_VALUE ? '' : value
+              onStateChange(nextState)
+              onCityChange('')
+            }}
+            disabled={loadingStates}
+          >
+            <SelectTrigger id="state" className="h-10">
+              <SelectValue placeholder={loadingStates ? 'Loading states...' : 'Select state'} />
+            </SelectTrigger>
+            <SelectContent className="z-[80] max-h-72">
+              <SelectItem value={EMPTY_VALUE}>Select state</SelectItem>
+              {states.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : country && !loadingStates ? (
           <Input
             placeholder="Type state manually"
             value={state}
@@ -157,40 +170,47 @@ export function LocationHierarchyFields({
             }}
             required={required}
           />
-        ) : null}
+        ) : (
+          <Input
+            value={!country ? 'Select country first' : 'Loading states...'}
+            disabled
+          />
+        )}
       </div>
 
       <div className="grid gap-2">
         <Label htmlFor="city">City{required ? ' *' : ''}</Label>
-        <select
-          id="city"
-          value={city}
-          required={required && cities.length > 0}
-          disabled={!country || !state}
-          onChange={(event) => onCityChange(event.target.value)}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
-        >
-          <option value="">
-            {!country || !state
-              ? 'Select country and state first'
-              : loadingCities
-                ? 'Loading cities...'
-                : 'Select city'}
-          </option>
-          {cities.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-        {country && state && !loadingCities && cities.length === 0 ? (
+        {country && state && cities.length > 0 ? (
+          <Select
+            value={city || EMPTY_VALUE}
+            onValueChange={(value) => onCityChange(value === EMPTY_VALUE ? '' : value)}
+            disabled={loadingCities}
+          >
+            <SelectTrigger id="city" className="h-10">
+              <SelectValue placeholder={loadingCities ? 'Loading cities...' : 'Select city'} />
+            </SelectTrigger>
+            <SelectContent className="z-[80] max-h-72">
+              <SelectItem value={EMPTY_VALUE}>Select city</SelectItem>
+              {cities.map((option) => (
+                <SelectItem key={option} value={option}>
+                  {option}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        ) : country && state && !loadingCities ? (
           <Input
             placeholder="Type city manually"
             value={city}
             onChange={(event) => onCityChange(event.target.value)}
             required={required}
           />
-        ) : null}
+        ) : (
+          <Input
+            value={!country || !state ? 'Select country and state first' : 'Loading cities...'}
+            disabled
+          />
+        )}
       </div>
     </>
   )

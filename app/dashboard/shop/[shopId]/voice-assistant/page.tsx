@@ -37,7 +37,8 @@ function CommandCard({
 
 export default function VoiceAssistantPage() {
   const params = useParams()
-  const shopId = params.shopId as string
+  const rawShopId = params.shopId
+  const shopId = (Array.isArray(rawShopId) ? rawShopId[0] : rawShopId) ?? ''
 
   return (
     /*
@@ -45,7 +46,7 @@ export default function VoiceAssistantPage() {
      * overflow-hidden prevents page-level scroll — all scrolling happens
      * inside the VoiceAssistant messages container.
      */
-    <div className="h-full flex flex-col p-4 lg:p-6 xl:p-8 gap-6 overflow-hidden">
+    <div className="min-h-full flex flex-col p-4 lg:p-6 xl:p-8 gap-4 lg:gap-6 overflow-y-auto lg:overflow-hidden">
 
       {/* ── Page header ──────────────────────────────────────────────── */}
       <div className="flex-shrink-0">
@@ -62,13 +63,13 @@ export default function VoiceAssistantPage() {
       </div>
 
       {/* ── Two-column layout: assistant left, commands right ─────────── */}
-      <div className="flex-1 grid lg:grid-cols-[1fr_320px] gap-5 min-h-0 overflow-hidden">
+      <div className="flex-1 grid lg:grid-cols-[1fr_320px] gap-4 lg:gap-5 min-h-0 lg:overflow-hidden">
 
         {/*
          * Assistant panel — flex-1 + min-h-0 lets it fill available height
          * without causing page scroll. VoiceAssistant itself is h-full.
          */}
-        <div className="min-h-0 flex flex-col">
+        <div className="min-h-[60vh] lg:min-h-0 flex flex-col">
           <VoiceAssistant shopId={shopId} />
         </div>
 

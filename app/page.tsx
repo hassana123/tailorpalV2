@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { requiresRoleSelection } from '@/lib/auth/role'
 
@@ -17,11 +17,22 @@ import { FinalCTA }            from '@/components/home/FinalCTA'
 
 export default function HomePage() {
   const router = useRouter()
+  const searchParams = useSearchParams()
   const supabase = createClient()
+  const oauthQuery = searchParams.toString()
 
   useEffect(() => {
+    const params = new URLSearchParams(oauthQuery)
+    const hasOAuthParams =
+      params.has('code') || params.has('error') || params.has('error_description')
+
+    if (hasOAuthParams) {
+      router.replace(oauthQuery ? `/auth/callback?${oauthQuery}` : '/auth/callback')
+      return
+    }
+
     void checkAuth()
-  }, [])
+  }, [oauthQuery])
 
   const checkAuth = async () => {
     try {

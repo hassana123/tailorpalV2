@@ -29,8 +29,8 @@ export function AssistantHeader({
   onClearHistory,
 }: AssistantHeaderProps) {
   return (
-    <div className="flex items-center justify-between px-6 py-4 border-b border-brand-border/50 bg-brand-cream/40 flex-shrink-0">
-      <div className="flex items-center gap-3">
+    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between px-4 sm:px-6 py-3 sm:py-4 border-b border-brand-border/50 bg-brand-cream/40 flex-shrink-0">
+      <div className="flex items-center gap-3 min-w-0">
         <div className="relative flex items-center justify-center">
           <div
             className={cn(
@@ -50,13 +50,13 @@ export function AssistantHeader({
             <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white bg-red-500 animate-pulse" />
           )}
         </div>
-        <div>
+        <div className="min-w-0">
           <h3 className="font-display text-base text-brand-ink">TailorPal Assistant</h3>
           <p className="text-[10px] font-bold text-brand-stone uppercase tracking-wider">{statusLabel}</p>
         </div>
       </div>
 
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-1 self-end sm:self-auto">
         <button
           onClick={onToggleAutoSend}
           title={autoSend ? 'Auto-send on' : 'Auto-send off'}

@@ -6,11 +6,37 @@ type RequestLike = {
 }
 
 const PROTOCOL_PATTERN = /^https?:\/\//i
-
 function normalizeAppUrl(url: string): string {
   const trimmed = url.trim()
   const withProtocol = PROTOCOL_PATTERN.test(trimmed) ? trimmed : `https://${trimmed}`
   return withProtocol.replace(/\/+$/, '')
+}
+
+function toSafeOrigin(value: string | null | undefined): string | null {
+  if (!value) {
+    return null
+  }
+
+  try {
+    const parsed = new URL(value)
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return null
+    }
+    return `${parsed.protocol}//${parsed.host}`
+  } catch {
+    return null
+  }
+}
+
+function resolveForwardedOrigin(request: RequestLike): string | null {
+  const forwardedHost = request.headers.get('x-forwarded-host')?.trim()
+  if (!forwardedHost) {
+    return null
+  }
+
+  const forwardedProto = request.headers.get('x-forwarded-proto')?.trim() || 'https'
+  const protocol = forwardedProto === 'http' ? 'http' : 'https'
+  return toSafeOrigin(`${protocol}://${forwardedHost}`)
 }
 
 function getConfiguredAppUrl(): string | null {
@@ -32,14 +58,20 @@ export function getBrowserAppUrl(): string {
 }
 
 export function getRequestAppUrl(request: RequestLike): string {
-  const forwardedHost = request.headers.get('x-forwarded-host')
-  if (forwardedHost) {
-    const forwardedProto = request.headers.get('x-forwarded-proto') ?? 'https'
-    return `${forwardedProto}://${forwardedHost}`
+  // Same-origin fetch requests include this; prefer it so localhost stays localhost.
+  const requestOriginHeader = toSafeOrigin(request.headers.get('origin'))
+  if (requestOriginHeader) {
+    return requestOriginHeader
   }
 
-  if (request.nextUrl.origin) {
-    return request.nextUrl.origin
+  const nextOrigin = toSafeOrigin(request.nextUrl.origin)
+  if (nextOrigin) {
+    return nextOrigin
+  }
+
+  const forwardedOrigin = resolveForwardedOrigin(request)
+  if (forwardedOrigin) {
+    return forwardedOrigin
   }
 
   const configured = getConfiguredAppUrl()
