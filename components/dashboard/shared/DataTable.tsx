@@ -27,6 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
+import { TableAction } from '@/components/dashboard/shared/table-actions'
 import { cn } from '@/lib/utils'
 
 interface Column<T> {
@@ -48,7 +49,7 @@ interface DataTableProps<T> {
   pageSizeOptions?: number[]
   emptyMessage?: string
   onRowClick?: (item: T) => void
-  actions?: (item: T) => { label: string; onClick: () => void; variant?: 'default' | 'destructive' | 'outline' }[]
+  actions?: (item: T) => TableAction[]
 }
 
 export function DataTable<T>({

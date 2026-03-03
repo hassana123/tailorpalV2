@@ -23,6 +23,8 @@ import {
   Loader2,
   ArrowLeft,
   Trash2,
+  Eye,
+  Pencil,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -74,10 +76,14 @@ function StatCard({
 
 function CatalogItemCard({
   item,
+  onView,
+  onEdit,
   onToggle,
   onDelete,
 }: {
   item: CatalogItem
+  onView: (item: CatalogItem) => void
+  onEdit: (item: CatalogItem) => void
   onToggle: (item: CatalogItem) => void
   onDelete: (id: string) => void
 }) {
@@ -125,6 +131,24 @@ function CatalogItemCard({
         {/* Actions */}
         <div className="flex gap-2 mt-4 pt-3 border-t border-brand-border">
           <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={() => onView(item)}
+          >
+            <Eye size={12} className="mr-1" />
+            View
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-8 px-2 text-xs"
+            onClick={() => onEdit(item)}
+          >
+            <Pencil size={12} className="mr-1" />
+            Edit
+          </Button>
+          <Button
             variant="outline"
             size="sm"
             className="flex-1 h-8 text-xs"
@@ -164,6 +188,15 @@ export default function ShopCatalogPage() {
   const [catalogSaving, setCatalogSaving] = useState(false)
   const [imageUploading, setImageUploading] = useState(false)
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
+  const [selectedCatalogItem, setSelectedCatalogItem] = useState<CatalogItem | null>(null)
+  const [editCatalogItem, setEditCatalogItem] = useState<NewCatalogItem>({
+    name: '',
+    description: '',
+    price: '',
+    imageUrl: '',
+  })
 
   useEffect(() => {
     void loadCatalog()
@@ -264,6 +297,7 @@ export default function ShopCatalogPage() {
   }
 
   const deleteCatalogItem = async (itemId: string) => {
+    if (!confirm('Delete this catalog item?')) return
     try {
       const response = await fetch(`/api/shops/${shopId}/catalog/${itemId}`, {
         method: 'DELETE',
@@ -276,6 +310,58 @@ export default function ShopCatalogPage() {
       toast.success('Catalog item deleted')
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to delete item')
+    }
+  }
+
+  const openViewModal = (item: CatalogItem) => {
+    setSelectedCatalogItem(item)
+    setViewModalOpen(true)
+  }
+
+  const openEditModal = (item: CatalogItem) => {
+    setSelectedCatalogItem(item)
+    setEditCatalogItem({
+      name: item.name,
+      description: item.description || '',
+      price: item.price.toString(),
+      imageUrl: item.image_url || '',
+    })
+    setEditModalOpen(true)
+  }
+
+  const saveEditedCatalogItem = async () => {
+    if (!selectedCatalogItem) return
+
+    const parsedPrice = Number.parseFloat(editCatalogItem.price)
+    if (!editCatalogItem.name.trim() || !Number.isFinite(parsedPrice) || parsedPrice < 0) {
+      toast.error('Item name and valid price are required')
+      return
+    }
+
+    try {
+      setCatalogSaving(true)
+      const response = await fetch(`/api/shops/${shopId}/catalog/${selectedCatalogItem.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: editCatalogItem.name.trim(),
+          description: editCatalogItem.description || null,
+          price: parsedPrice,
+          imageUrl: editCatalogItem.imageUrl || null,
+        }),
+      })
+      if (!response.ok) {
+        const payload = (await response.json()) as { error?: string }
+        throw new Error(payload.error || 'Failed to update catalog item')
+      }
+      const payload = (await response.json()) as { item: CatalogItem }
+      setCatalogItems((prev) => prev.map((item) => (item.id === payload.item.id ? payload.item : item)))
+      setEditModalOpen(false)
+      toast.success('Catalog item updated')
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to update catalog item')
+    } finally {
+      setCatalogSaving(false)
     }
   }
 
@@ -360,6 +446,8 @@ export default function ShopCatalogPage() {
               <CatalogItemCard
                 key={item.id}
                 item={item}
+                onView={openViewModal}
+                onEdit={openEditModal}
                 onToggle={toggleCatalogItemActive}
                 onDelete={deleteCatalogItem}
               />
@@ -449,6 +537,94 @@ export default function ShopCatalogPage() {
           </div>
         </div>
       </ModalForm>
+
+      {selectedCatalogItem && (
+        <ModalForm
+          open={viewModalOpen}
+          onOpenChange={setViewModalOpen}
+          title={selectedCatalogItem.name}
+          description="Catalog item details"
+          hideFooter
+          maxWidth="md"
+        >
+          <div className="space-y-4">
+            {selectedCatalogItem.image_url ? (
+              <img
+                src={selectedCatalogItem.image_url}
+                alt={selectedCatalogItem.name}
+                className="w-full h-52 rounded-xl object-cover border border-brand-border"
+              />
+            ) : (
+              <div className="h-52 rounded-xl border border-dashed border-brand-border bg-brand-cream/40 flex items-center justify-center">
+                <ImageIcon className="text-brand-stone" />
+              </div>
+            )}
+            <div className="space-y-2 text-sm text-brand-stone">
+              <p>
+                <span className="font-semibold text-brand-ink">Price:</span> ${selectedCatalogItem.price.toFixed(2)}
+              </p>
+              <p>
+                <span className="font-semibold text-brand-ink">Status:</span>{' '}
+                {selectedCatalogItem.is_active ? 'Active' : 'Inactive'}
+              </p>
+            </div>
+            {selectedCatalogItem.description && (
+              <p className="text-sm text-brand-charcoal leading-relaxed">
+                {selectedCatalogItem.description}
+              </p>
+            )}
+          </div>
+        </ModalForm>
+      )}
+
+      {selectedCatalogItem && (
+        <ModalForm
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          title={`Edit ${selectedCatalogItem.name}`}
+          description="Update catalog item details"
+          onSubmit={saveEditedCatalogItem}
+          isSubmitting={catalogSaving}
+          submitLabel="Save Changes"
+          maxWidth="lg"
+        >
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Item Name *</Label>
+                <Input
+                  value={editCatalogItem.name}
+                  onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, name: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Price *</Label>
+                <Input
+                  type="number"
+                  value={editCatalogItem.price}
+                  onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, price: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Description</Label>
+              <Textarea
+                rows={3}
+                value={editCatalogItem.description}
+                onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, description: e.target.value }))}
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Image URL</Label>
+              <Input
+                value={editCatalogItem.imageUrl}
+                onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, imageUrl: e.target.value }))}
+                placeholder="https://..."
+              />
+            </div>
+          </div>
+        </ModalForm>
+      )}
 
     </div>
   )

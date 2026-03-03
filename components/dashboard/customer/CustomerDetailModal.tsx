@@ -64,11 +64,13 @@ export function CustomerDetailModal({
 }: CustomerDetailModalProps) {
   const [measurements, setMeasurements] = useState<Measurement[]>([])
   const [loading, setLoading] = useState(true)
+  const [showAllMeasurementValues, setShowAllMeasurementValues] = useState(false)
   const supabase = createClient()
 
   useEffect(() => {
     if (open) {
       fetchMeasurements()
+      setShowAllMeasurementValues(false)
     }
   }, [open, customer.id])
 
@@ -173,10 +175,22 @@ export function CustomerDetailModal({
 
         {/* Measurements History */}
         <div>
-          <h4 className="font-semibold text-brand-ink mb-3 flex items-center gap-2">
-            <Ruler className="h-4 w-4 text-brand-gold" />
-            Measurement History ({measurements.length})
-          </h4>
+          <div className="mb-3 flex items-center justify-between gap-2">
+            <h4 className="font-semibold text-brand-ink flex items-center gap-2">
+              <Ruler className="h-4 w-4 text-brand-gold" />
+              Measurement History ({measurements.length})
+            </h4>
+            {measurements.length > 0 && (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAllMeasurementValues((prev) => !prev)}
+              >
+                {showAllMeasurementValues ? 'Show Summary' : 'View All Measurements'}
+              </Button>
+            )}
+          </div>
 
           {loading ? (
             <div className="flex justify-center py-8">
@@ -197,7 +211,11 @@ export function CustomerDetailModal({
           ) : (
             <div className="space-y-3 max-h-[300px] overflow-y-auto">
               {measurements.map((measurement) => (
-                <MeasurementCard key={measurement.id} measurement={measurement} />
+                <MeasurementCard
+                  key={measurement.id}
+                  measurement={measurement}
+                  showAllValues={showAllMeasurementValues}
+                />
               ))}
             </div>
           )}
@@ -207,8 +225,15 @@ export function CustomerDetailModal({
   )
 }
 
-function MeasurementCard({ measurement }: { measurement: Measurement }) {
+function MeasurementCard({
+  measurement,
+  showAllValues,
+}: {
+  measurement: Measurement
+  showAllValues: boolean
+}) {
   const entries = sortMeasurementEntries(Object.entries(extractMeasurementMaps(measurement).all))
+  const visibleEntries = showAllValues ? entries : entries.slice(0, 6)
 
   return (
     <div className="bg-white rounded-xl border border-brand-border p-4">
@@ -233,7 +258,7 @@ function MeasurementCard({ measurement }: { measurement: Measurement }) {
 
       {entries.length > 0 ? (
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-          {entries.slice(0, 6).map(([key, value]) => (
+          {visibleEntries.map(([key, value]) => (
             <div key={key} className="bg-brand-cream/50 rounded-lg px-2 py-1.5">
               <span className="text-[10px] text-brand-stone uppercase block truncate">
                 {formatMeasurementLabel(key)}
@@ -241,7 +266,7 @@ function MeasurementCard({ measurement }: { measurement: Measurement }) {
               <span className="text-sm font-semibold text-brand-ink">{value} cm</span>
             </div>
           ))}
-          {entries.length > 6 && (
+          {!showAllValues && entries.length > 6 && (
             <div className="bg-brand-cream/50 rounded-lg px-2 py-1.5 flex items-center justify-center">
               <span className="text-xs text-brand-stone">+{entries.length - 6} more</span>
             </div>

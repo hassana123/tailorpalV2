@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/dashboard/shared/DataTable'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
+import { TableAction } from '@/components/dashboard/shared/table-actions'
 import {
   Plus,
   ShoppingCart,
@@ -40,9 +41,13 @@ interface Order {
   customer_id: string
   order_number: string
   design_description: string | null
+  fabric_details?: string | null
   status: 'pending' | 'in_progress' | 'completed' | 'delivered' | 'cancelled'
   estimated_delivery_date?: string | null
+  total_price?: number | null
+  notes?: string | null
   created_at: string
+  updated_at?: string
   customers?: CustomerOption | null
 }
 
@@ -109,7 +114,17 @@ export default function OrdersPage() {
   // Modals
   const [addModalOpen, setAddModalOpen]               = useState(false)
   const [requestDetailOpen, setRequestDetailOpen]     = useState(false)
+  const [orderDetailOpen, setOrderDetailOpen]         = useState(false)
+  const [editOrderOpen, setEditOrderOpen]             = useState(false)
   const [selectedRequest, setSelectedRequest]         = useState<CatalogOrderRequest | null>(null)
+  const [selectedOrder, setSelectedOrder]             = useState<Order | null>(null)
+  const [editOrder, setEditOrder] = useState({
+    status: 'pending' as Order['status'],
+    designDescription: '',
+    estimatedDeliveryDate: '',
+    totalPrice: '',
+    notes: '',
+  })
 
   // Form
   const [isSubmitting, setIsSubmitting]               = useState(false)
@@ -188,6 +203,73 @@ export default function OrdersPage() {
       toast.error(err instanceof Error ? err.message : 'Failed to create order')
     } finally {
       setIsSubmitting(false)
+    }
+  }
+
+  const openOrderDetails = (order: Order) => {
+    setSelectedOrder(order)
+    setOrderDetailOpen(true)
+  }
+
+  const openEditOrder = (order: Order) => {
+    setSelectedOrder(order)
+    setEditOrder({
+      status: order.status,
+      designDescription: order.design_description ?? '',
+      estimatedDeliveryDate: order.estimated_delivery_date ?? '',
+      totalPrice: order.total_price?.toString() ?? '',
+      notes: order.notes ?? '',
+    })
+    setEditOrderOpen(true)
+  }
+
+  const handleUpdateOrder = async () => {
+    if (!selectedOrder) return
+    if (!editOrder.designDescription.trim()) {
+      toast.error('Design description is required')
+      return
+    }
+
+    try {
+      setIsSubmitting(true)
+      const parsedPrice = editOrder.totalPrice.trim()
+        ? Number.parseFloat(editOrder.totalPrice)
+        : null
+
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: editOrder.status,
+          design_description: editOrder.designDescription.trim(),
+          estimated_delivery_date: editOrder.estimatedDeliveryDate || null,
+          total_price: Number.isFinite(parsedPrice) ? parsedPrice : null,
+          notes: editOrder.notes.trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', selectedOrder.id)
+
+      if (error) throw error
+
+      toast.success('Order updated')
+      setEditOrderOpen(false)
+      await fetchData()
+    } catch (err) {
+      toast.error('Failed to update order')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  const handleDeleteOrder = async (order: Order) => {
+    if (!confirm(`Delete order #${order.order_number}?`)) return
+
+    try {
+      const { error } = await supabase.from('orders').delete().eq('id', order.id)
+      if (error) throw error
+      toast.success('Order deleted')
+      await fetchData()
+    } catch (err) {
+      toast.error('Failed to delete order')
     }
   }
 
@@ -323,19 +405,29 @@ export default function OrdersPage() {
     },
   ]
 
-  const orderActions = ( ) => [
+  const orderActions = (order: Order): TableAction[] => [
     {
       label: 'View Details',
-      onClick: () => {},
-      variant: 'default' as const,
+      onClick: () => openOrderDetails(order),
+      variant: 'default',
+    },
+    {
+      label: 'Edit',
+      onClick: () => openEditOrder(order),
+      variant: 'outline',
+    },
+    {
+      label: 'Delete',
+      onClick: () => handleDeleteOrder(order),
+      variant: 'destructive',
     },
   ]
 
-  const requestActions = (r: CatalogOrderRequest) => [
+  const requestActions = (r: CatalogOrderRequest): TableAction[] => [
     {
       label: 'View Details',
       onClick: () => { setSelectedRequest(r); setRequestDetailOpen(true) },
-      variant: 'default' as const,
+      variant: 'default',
     },
   ]
 
@@ -482,6 +574,129 @@ export default function OrdersPage() {
       </ModalForm>
 
       {/* Catalog Request Detail Modal */}
+      {selectedOrder && (
+        <ModalForm
+          open={orderDetailOpen}
+          onOpenChange={setOrderDetailOpen}
+          title={`Order #${selectedOrder.order_number}`}
+          description={`${selectedOrder.customers?.first_name ?? ''} ${selectedOrder.customers?.last_name ?? ''}`.trim()}
+          hideFooter
+          maxWidth="md"
+        >
+          {(() => {
+            const statusStyle = STATUS_STYLES[selectedOrder.status]
+            const StatusIcon = statusStyle.Icon
+            return (
+          <div className="space-y-4">
+            <div className="bg-brand-cream/40 rounded-xl border border-brand-border p-4 space-y-2.5">
+              <div className="text-sm text-brand-stone">
+                <span className="font-semibold text-brand-ink">Created:</span>{' '}
+                {new Date(selectedOrder.created_at).toLocaleString()}
+              </div>
+              <div className="text-sm text-brand-stone">
+                <span className="font-semibold text-brand-ink">Due date:</span>{' '}
+                {selectedOrder.estimated_delivery_date
+                  ? new Date(selectedOrder.estimated_delivery_date).toLocaleDateString()
+                  : '—'}
+              </div>
+              <div className="text-sm text-brand-stone">
+                <span className="font-semibold text-brand-ink">Price:</span>{' '}
+                {selectedOrder.total_price ? `$${selectedOrder.total_price.toFixed(2)}` : '—'}
+              </div>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full',
+                  statusStyle.className
+                )}
+              >
+                <StatusIcon size={11} />
+                {statusStyle.label}
+              </span>
+            </div>
+            <div>
+              <p className="text-xs font-bold text-brand-stone uppercase tracking-wider mb-1.5">
+                Design Description
+              </p>
+              <p className="text-sm text-brand-charcoal leading-relaxed">
+                {selectedOrder.design_description || '—'}
+              </p>
+            </div>
+            {selectedOrder.notes && (
+              <div>
+                <p className="text-xs font-bold text-brand-stone uppercase tracking-wider mb-1.5">Notes</p>
+                <p className="text-sm text-brand-charcoal leading-relaxed">{selectedOrder.notes}</p>
+              </div>
+            )}
+          </div>
+            )
+          })()}
+        </ModalForm>
+      )}
+
+      {selectedOrder && (
+        <ModalForm
+          open={editOrderOpen}
+          onOpenChange={setEditOrderOpen}
+          title={`Edit Order #${selectedOrder.order_number}`}
+          description="Update order details"
+          onSubmit={handleUpdateOrder}
+          isSubmitting={isSubmitting}
+          submitLabel="Save Changes"
+          maxWidth="lg"
+        >
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <select
+                className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold/55 transition-all appearance-none"
+                value={editOrder.status}
+                onChange={(e) => setEditOrder((p) => ({ ...p, status: e.target.value as Order['status'] }))}
+              >
+                <option value="pending">Pending</option>
+                <option value="in_progress">In Progress</option>
+                <option value="completed">Completed</option>
+                <option value="delivered">Delivered</option>
+                <option value="cancelled">Cancelled</option>
+              </select>
+            </div>
+            <div className="space-y-2">
+              <Label>Design Description *</Label>
+              <Textarea
+                rows={4}
+                value={editOrder.designDescription}
+                onChange={(e) => setEditOrder((p) => ({ ...p, designDescription: e.target.value }))}
+              />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Estimated Delivery Date</Label>
+                <Input
+                  type="date"
+                  value={editOrder.estimatedDeliveryDate}
+                  onChange={(e) => setEditOrder((p) => ({ ...p, estimatedDeliveryDate: e.target.value }))}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Total Price</Label>
+                <Input
+                  type="number"
+                  value={editOrder.totalPrice}
+                  onChange={(e) => setEditOrder((p) => ({ ...p, totalPrice: e.target.value }))}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                rows={3}
+                value={editOrder.notes}
+                onChange={(e) => setEditOrder((p) => ({ ...p, notes: e.target.value }))}
+              />
+            </div>
+          </div>
+        </ModalForm>
+      )}
+
       {selectedRequest && (
         <ModalForm
           open={requestDetailOpen}

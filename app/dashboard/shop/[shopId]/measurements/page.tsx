@@ -11,10 +11,12 @@ import { Badge } from '@/components/ui/badge'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/dashboard/shared/DataTable'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
+import { TableAction } from '@/components/dashboard/shared/table-actions'
 import { STANDARD_MEASUREMENTS } from '@/lib/constants/measurements'
 import {
   extractMeasurementMaps,
   formatMeasurementLabel,
+  sanitizeMeasurementMap,
   sortMeasurementEntries,
 } from '@/lib/utils/measurement-records'
 import {
@@ -49,6 +51,15 @@ interface CustomerOption {
   id: string
   first_name: string
   last_name: string
+}
+
+type EditableMeasurement = {
+  id: string
+  customerName: string
+  status: Measurement['status']
+  notes: string
+  standard: Record<string, string>
+  custom: Record<string, string>
 }
 
 const MEASUREMENT_CATEGORIES = Array.from(
@@ -170,7 +181,12 @@ export default function MeasurementsPage() {
   const [customers, setCustomers] = useState<CustomerOption[]>([])
   const [loading, setLoading] = useState(true)
   const [addModalOpen, setAddModalOpen] = useState(false)
+  const [viewModalOpen, setViewModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [isEditing, setIsEditing] = useState(false)
+  const [selectedMeasurement, setSelectedMeasurement] = useState<Measurement | null>(null)
+  const [editableMeasurement, setEditableMeasurement] = useState<EditableMeasurement | null>(null)
 
   // Form state
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
@@ -289,6 +305,64 @@ export default function MeasurementsPage() {
     }
   }
 
+  const openViewModal = (measurement: Measurement) => {
+    setSelectedMeasurement(measurement)
+    setViewModalOpen(true)
+  }
+
+  const openEditModal = (measurement: Measurement) => {
+    const maps = extractMeasurementMaps(measurement)
+    const toStringMap = (input: Record<string, number>) =>
+      Object.fromEntries(Object.entries(input).map(([key, value]) => [key, String(value)]))
+
+    setEditableMeasurement({
+      id: measurement.id,
+      customerName: `${measurement.customers?.first_name ?? ''} ${measurement.customers?.last_name ?? ''}`.trim(),
+      status: measurement.status,
+      notes: measurement.notes ?? '',
+      standard: toStringMap(maps.standard),
+      custom: toStringMap(maps.custom),
+    })
+    setEditModalOpen(true)
+  }
+
+  const handleMeasurementUpdate = async () => {
+    if (!editableMeasurement) return
+
+    const standard = sanitizeMeasurementMap(editableMeasurement.standard)
+    const custom = sanitizeMeasurementMap(editableMeasurement.custom)
+
+    if (Object.keys(standard).length === 0 && Object.keys(custom).length === 0) {
+      toast.error('Please enter at least one valid measurement value')
+      return
+    }
+
+    try {
+      setIsEditing(true)
+      const { error } = await supabase
+        .from('measurements')
+        .update({
+          standard_measurements: standard,
+          custom_measurements: custom,
+          notes: editableMeasurement.notes.trim() || null,
+          status: editableMeasurement.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', editableMeasurement.id)
+
+      if (error) throw error
+
+      toast.success('Measurement updated')
+      setEditModalOpen(false)
+      setEditableMeasurement(null)
+      await fetchData()
+    } catch (err) {
+      toast.error('Failed to update measurement')
+    } finally {
+      setIsEditing(false)
+    }
+  }
+
   // ─── Table columns ───────────────────────────────────────────────────────
 
   const columns = [
@@ -367,7 +441,17 @@ export default function MeasurementsPage() {
     },
   ]
 
-  const actions = (m: Measurement) => [
+  const actions = (m: Measurement): TableAction[] => [
+    {
+      label: 'View Details',
+      onClick: () => openViewModal(m),
+      variant: 'default',
+    },
+    {
+      label: 'Edit',
+      onClick: () => openEditModal(m),
+      variant: 'outline',
+    },
     {
       label: 'Delete',
       onClick: async () => {
@@ -567,6 +651,165 @@ export default function MeasurementsPage() {
         </div>
       </ModalForm>
 
+      <ModalForm
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+        title="Measurement Details"
+        description={
+          selectedMeasurement
+            ? `${selectedMeasurement.customers?.first_name ?? ''} ${selectedMeasurement.customers?.last_name ?? ''}`.trim()
+            : ''
+        }
+        hideFooter
+        maxWidth="lg"
+      >
+        {selectedMeasurement && (
+          <MeasurementDetails measurement={selectedMeasurement} />
+        )}
+      </ModalForm>
+
+      <ModalForm
+        open={editModalOpen}
+        onOpenChange={(open) => {
+          setEditModalOpen(open)
+          if (!open) setEditableMeasurement(null)
+        }}
+        title="Edit Measurement"
+        description={editableMeasurement?.customerName || 'Update measurement details'}
+        onSubmit={handleMeasurementUpdate}
+        isSubmitting={isEditing}
+        submitLabel="Save Changes"
+        maxWidth="lg"
+      >
+        {editableMeasurement && (
+          <div className="space-y-5">
+            <div className="space-y-2">
+              <Label>Status</Label>
+              <select
+                value={editableMeasurement.status}
+                onChange={(e) =>
+                  setEditableMeasurement((prev) =>
+                    prev ? { ...prev, status: e.target.value as Measurement['status'] } : prev
+                  )
+                }
+                className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold/55 transition-all"
+              >
+                <option value="pending">Pending</option>
+                <option value="completed">Completed</option>
+              </select>
+            </div>
+
+            <MeasurementInputFields
+              title="Standard Measurements"
+              values={editableMeasurement.standard}
+              onChange={(key, value) =>
+                setEditableMeasurement((prev) =>
+                  prev ? { ...prev, standard: { ...prev.standard, [key]: value } } : prev
+                )
+              }
+            />
+
+            <MeasurementInputFields
+              title="Custom Measurements"
+              values={editableMeasurement.custom}
+              onChange={(key, value) =>
+                setEditableMeasurement((prev) =>
+                  prev ? { ...prev, custom: { ...prev.custom, [key]: value } } : prev
+                )
+              }
+            />
+
+            <div className="space-y-2">
+              <Label>Notes</Label>
+              <Textarea
+                value={editableMeasurement.notes}
+                onChange={(e) =>
+                  setEditableMeasurement((prev) => (prev ? { ...prev, notes: e.target.value } : prev))
+                }
+                rows={3}
+              />
+            </div>
+          </div>
+        )}
+      </ModalForm>
+
+    </div>
+  )
+}
+
+function MeasurementDetails({ measurement }: { measurement: Measurement }) {
+  const entries = sortMeasurementEntries(Object.entries(extractMeasurementMaps(measurement).all))
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <span className="text-sm text-brand-stone">
+          {new Date(measurement.created_at).toLocaleString()}
+        </span>
+        <Badge
+          className={cn(
+            measurement.status === 'completed'
+              ? 'bg-green-100 text-green-800'
+              : 'bg-yellow-100 text-yellow-800'
+          )}
+        >
+          {measurement.status}
+        </Badge>
+      </div>
+
+      {entries.length > 0 ? (
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {entries.map(([key, value]) => (
+            <div key={key} className="bg-brand-cream/50 rounded-lg px-2 py-1.5">
+              <span className="text-[10px] text-brand-stone uppercase block truncate">
+                {formatMeasurementLabel(key)}
+              </span>
+              <span className="text-sm font-semibold text-brand-ink">{value} cm</span>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <p className="text-sm text-brand-stone">No measurement values recorded.</p>
+      )}
+
+      {measurement.notes && (
+        <p className="text-xs text-brand-stone pt-2 border-t border-brand-border">{measurement.notes}</p>
+      )}
+    </div>
+  )
+}
+
+function MeasurementInputFields({
+  title,
+  values,
+  onChange,
+}: {
+  title: string
+  values: Record<string, string>
+  onChange: (key: string, value: string) => void
+}) {
+  const entries = sortMeasurementEntries(
+    Object.entries(values).map(([key, value]) => [key, Number.parseFloat(value) || 0])
+  ).map(([key]) => [key, values[key] ?? ''] as const)
+
+  if (entries.length === 0) return null
+
+  return (
+    <div className="space-y-2">
+      <p className="text-sm font-medium text-brand-ink">{title}</p>
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        {entries.map(([key, value]) => (
+          <div key={key}>
+            <Label className="text-xs text-brand-stone">{formatMeasurementLabel(key)}</Label>
+            <Input
+              type="number"
+              value={value}
+              onChange={(e) => onChange(key, e.target.value)}
+              className="mt-1"
+            />
+          </div>
+        ))}
+      </div>
     </div>
   )
 }
