@@ -34,6 +34,7 @@ export function useVoiceRecognition({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const pendingTranscriptRef = useRef('')
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const startRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const shouldKeepListeningRef = useRef(false)
   const autoSendRef = useRef(autoSend)
   const continuousRef = useRef(continuousMode)
@@ -49,12 +50,24 @@ export function useVoiceRecognition({
     silenceTimerRef.current = null
   }, [])
 
+  const clearStartRetryTimer = useCallback(() => {
+    if (!startRetryTimerRef.current) return
+    clearTimeout(startRetryTimerRef.current)
+    startRetryTimerRef.current = null
+  }, [])
+
   const queueAutoSend = useCallback(() => {
     clearSilenceTimer()
     silenceTimerRef.current = setTimeout(() => {
       silenceTimerRef.current = null
       const text = pendingTranscriptRef.current.trim()
       if (!text || isSendingRef.current) return
+      setInterimTranscript('')
+      setIsListening(false)
+      if (!continuousRef.current) {
+        shouldKeepListeningRef.current = false
+      }
+      recognitionRef.current?.stop()
       onAutoSend(text)
     }, SILENCE_TIMEOUT_MS)
   }, [clearSilenceTimer, onAutoSend])
@@ -113,7 +126,16 @@ export function useVoiceRecognition({
       setIsListening(false)
       setInterimTranscript('')
       if (continuousRef.current && shouldKeepListeningRef.current && !isSendingRef.current) {
-        tryStartRecognition(recognition)
+        const started = tryStartRecognition(recognition)
+        if (!started) {
+          clearStartRetryTimer()
+          startRetryTimerRef.current = setTimeout(() => {
+            startRetryTimerRef.current = null
+            if (continuousRef.current && shouldKeepListeningRef.current && !isSendingRef.current) {
+              tryStartRecognition(recognition)
+            }
+          }, 180)
+        }
       }
     }
 
@@ -126,38 +148,60 @@ export function useVoiceRecognition({
     recognitionRef.current = recognition
     return () => {
       clearSilenceTimer()
+      clearStartRetryTimer()
       recognitionRef.current?.abort()
       recognitionRef.current = null
     }
-  }, [clearSilenceTimer, queueAutoSend])
+  }, [clearSilenceTimer, clearStartRetryTimer, queueAutoSend])
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current || isSendingRef.current) return
     clearSilenceTimer()
+    clearStartRetryTimer()
     pendingTranscriptRef.current = ''
     setTranscript('')
     setInterimTranscript('')
     shouldKeepListeningRef.current = true
-    tryStartRecognition(recognitionRef.current)
-  }, [clearSilenceTimer])
+    const started = tryStartRecognition(recognitionRef.current)
+    if (!started) {
+      startRetryTimerRef.current = setTimeout(() => {
+        startRetryTimerRef.current = null
+        if (!recognitionRef.current || isSendingRef.current) return
+        tryStartRecognition(recognitionRef.current)
+      }, 180)
+    }
+  }, [clearSilenceTimer, clearStartRetryTimer])
 
   const stopListening = useCallback(() => {
     clearSilenceTimer()
+    clearStartRetryTimer()
     shouldKeepListeningRef.current = false
     recognitionRef.current?.stop()
     setIsListening(false)
-  }, [clearSilenceTimer])
+    setInterimTranscript('')
+  }, [clearSilenceTimer, clearStartRetryTimer])
 
   const pauseListening = useCallback(() => {
     clearSilenceTimer()
+    clearStartRetryTimer()
     recognitionRef.current?.stop()
-  }, [clearSilenceTimer])
+    setInterimTranscript('')
+  }, [clearSilenceTimer, clearStartRetryTimer])
 
   const resumeListening = useCallback(() => {
     if (!recognitionRef.current) return
     if (!continuousRef.current || !shouldKeepListeningRef.current || isSendingRef.current) return
-    tryStartRecognition(recognitionRef.current)
-  }, [])
+    clearStartRetryTimer()
+    const started = tryStartRecognition(recognitionRef.current)
+    if (!started) {
+      startRetryTimerRef.current = setTimeout(() => {
+        startRetryTimerRef.current = null
+        if (!recognitionRef.current) return
+        if (!continuousRef.current || !shouldKeepListeningRef.current || isSendingRef.current) return
+        tryStartRecognition(recognitionRef.current)
+      }, 180)
+    }
+  }, [clearStartRetryTimer])
 
   return {
     isListening,

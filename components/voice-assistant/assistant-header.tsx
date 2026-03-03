@@ -87,7 +87,7 @@ export function AssistantHeader({
           </button>
         </div>
         <p className="text-[10px] text-brand-stone">
-          Auto sends after 2.5s pause. Loop restarts mic after each reply. Voice replies stay on.
+          Auto sends after 1.5s pause. Loop restarts mic after each reply. Voice replies stay on.
         </p>
       </div>
 

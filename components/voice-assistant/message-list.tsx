@@ -30,7 +30,10 @@ export function MessageList({
   onToggleHelp,
 }: MessageListProps) {
   return (
-    <div ref={messagesContainerRef} className="flex-1 overflow-y-auto px-5 py-4 space-y-3 min-h-0">
+   <div
+      ref={messagesContainerRef}
+      className="h-[320px] sm:h-[420px] lg:h-[520px] overflow-y-auto overscroll-contain px-5 py-4 space-y-3"
+    >
       {messages.length === 0 && !displayTranscript && (
         <div className="flex flex-col items-center justify-center h-full text-center gap-4 py-8">
           <div className="w-16 h-16 rounded-2xl bg-brand-gold/10 flex items-center justify-center">

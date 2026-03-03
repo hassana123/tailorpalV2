@@ -11,7 +11,7 @@ import { ChatMessage, VoiceAssistantProps } from '@/components/voice-assistant/t
 
 export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const [autoSend, setAutoSend] = useState(true)
-  const [continuousMode, setContinuousMode] = useState(true)
+  const [continuousMode, setContinuousMode] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [showHelp, setShowHelp] = useState(false)
@@ -19,6 +19,7 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const messagesContainerRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
   const isSendingRef = useRef(false)
+  const resumeDelayRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const {
     isListening,
@@ -43,7 +44,13 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     setIsSending(false)
     isSendingRef.current = false
     if (continuousMode && shouldResume) {
-      resumeListening()
+      if (resumeDelayRef.current) {
+        clearTimeout(resumeDelayRef.current)
+      }
+      resumeDelayRef.current = setTimeout(() => {
+        resumeDelayRef.current = null
+        resumeListening()
+      }, 350)
     }
   }, [continuousMode, resumeListening])
 
@@ -54,6 +61,13 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   useEffect(() => {
     isSendingRef.current = isSending
   }, [isSending])
+
+  useEffect(() => () => {
+    if (resumeDelayRef.current) {
+      clearTimeout(resumeDelayRef.current)
+      resumeDelayRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     if (messagesContainerRef.current) {
