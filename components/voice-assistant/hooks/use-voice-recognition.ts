@@ -6,7 +6,6 @@ import { SpeechRecognitionCtor, SpeechRecognitionInstance } from '@/components/v
 
 interface UseVoiceRecognitionOptions {
   autoSend: boolean
-  continuousMode: boolean
   isSending: boolean
   onAutoSend: (text: string) => void
 }
@@ -22,7 +21,6 @@ function tryStartRecognition(recognition: SpeechRecognitionInstance) {
 
 export function useVoiceRecognition({
   autoSend,
-  continuousMode,
   isSending,
   onAutoSend,
 }: UseVoiceRecognitionOptions) {
@@ -35,13 +33,11 @@ export function useVoiceRecognition({
   const pendingTranscriptRef = useRef('')
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const startRetryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const shouldKeepListeningRef = useRef(false)
+  const isListeningRef = useRef(false)
   const autoSendRef = useRef(autoSend)
-  const continuousRef = useRef(continuousMode)
   const isSendingRef = useRef(isSending)
 
   useEffect(() => { autoSendRef.current = autoSend }, [autoSend])
-  useEffect(() => { continuousRef.current = continuousMode }, [continuousMode])
   useEffect(() => { isSendingRef.current = isSending }, [isSending])
 
   const clearSilenceTimer = useCallback(() => {
@@ -64,9 +60,7 @@ export function useVoiceRecognition({
       if (!text || isSendingRef.current) return
       setInterimTranscript('')
       setIsListening(false)
-      if (!continuousRef.current) {
-        shouldKeepListeningRef.current = false
-      }
+      isListeningRef.current = false
       recognitionRef.current?.stop()
       onAutoSend(text)
     }, SILENCE_TIMEOUT_MS)
@@ -92,6 +86,7 @@ export function useVoiceRecognition({
     recognition.maxAlternatives = 1
 
     recognition.onstart = () => {
+      isListeningRef.current = true
       setIsListening(true)
       setInterimTranscript('')
     }
@@ -123,25 +118,17 @@ export function useVoiceRecognition({
     }
 
     recognition.onend = () => {
+      isListeningRef.current = false
       setIsListening(false)
       setInterimTranscript('')
-      if (continuousRef.current && shouldKeepListeningRef.current && !isSendingRef.current) {
-        const started = tryStartRecognition(recognition)
-        if (!started) {
-          clearStartRetryTimer()
-          startRetryTimerRef.current = setTimeout(() => {
-            startRetryTimerRef.current = null
-            if (continuousRef.current && shouldKeepListeningRef.current && !isSendingRef.current) {
-              tryStartRecognition(recognition)
-            }
-          }, 180)
-        }
-      }
+      clearStartRetryTimer()
     }
 
     recognition.onerror = (event) => {
       if (event.error === 'no-speech' || event.error === 'aborted') return
+      isListeningRef.current = false
       setIsListening(false)
+      setInterimTranscript('')
       console.error('Speech recognition error:', event.error)
     }
 
@@ -156,26 +143,26 @@ export function useVoiceRecognition({
 
   const startListening = useCallback(() => {
     if (!recognitionRef.current || isSendingRef.current) return
+    if (isListeningRef.current) return
     clearSilenceTimer()
     clearStartRetryTimer()
     pendingTranscriptRef.current = ''
     setTranscript('')
     setInterimTranscript('')
-    shouldKeepListeningRef.current = true
     const started = tryStartRecognition(recognitionRef.current)
     if (!started) {
       startRetryTimerRef.current = setTimeout(() => {
         startRetryTimerRef.current = null
-        if (!recognitionRef.current || isSendingRef.current) return
+        if (!recognitionRef.current || isSendingRef.current || isListeningRef.current) return
         tryStartRecognition(recognitionRef.current)
-      }, 180)
+      }, 220)
     }
   }, [clearSilenceTimer, clearStartRetryTimer])
 
   const stopListening = useCallback(() => {
     clearSilenceTimer()
     clearStartRetryTimer()
-    shouldKeepListeningRef.current = false
+    isListeningRef.current = false
     recognitionRef.current?.stop()
     setIsListening(false)
     setInterimTranscript('')
@@ -184,22 +171,25 @@ export function useVoiceRecognition({
   const pauseListening = useCallback(() => {
     clearSilenceTimer()
     clearStartRetryTimer()
+    isListeningRef.current = false
     recognitionRef.current?.stop()
     setInterimTranscript('')
   }, [clearSilenceTimer, clearStartRetryTimer])
 
   const resumeListening = useCallback(() => {
     if (!recognitionRef.current) return
-    if (!continuousRef.current || !shouldKeepListeningRef.current || isSendingRef.current) return
+    if (isSendingRef.current || isListeningRef.current) return
     clearStartRetryTimer()
+    pendingTranscriptRef.current = ''
+    setTranscript('')
+    setInterimTranscript('')
     const started = tryStartRecognition(recognitionRef.current)
     if (!started) {
       startRetryTimerRef.current = setTimeout(() => {
         startRetryTimerRef.current = null
-        if (!recognitionRef.current) return
-        if (!continuousRef.current || !shouldKeepListeningRef.current || isSendingRef.current) return
+        if (!recognitionRef.current || isSendingRef.current || isListeningRef.current) return
         tryStartRecognition(recognitionRef.current)
-      }, 180)
+      }, 220)
     }
   }, [clearStartRetryTimer])
 

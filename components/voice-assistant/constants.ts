@@ -20,4 +20,4 @@ During guided steps:
 
 Controls:
 - Auto: sends after 1.5 seconds of silence
-- Loop: after assistant reply, microphone restarts automatically`
+- Loop: always on; microphone restarts after assistant reply`

@@ -11,7 +11,6 @@ import { ChatMessage, VoiceAssistantProps } from '@/components/voice-assistant/t
 
 export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const [autoSend, setAutoSend] = useState(true)
-  const [continuousMode, setContinuousMode] = useState(false)
   const [isSending, setIsSending] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [showHelp, setShowHelp] = useState(false)
@@ -35,7 +34,6 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     clearSilenceTimer,
   } = useVoiceRecognition({
     autoSend,
-    continuousMode,
     isSending,
     onAutoSend: (text) => sendCommand(text),
   })
@@ -43,7 +41,7 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const finishResponseCycle = useCallback((shouldResume: boolean) => {
     setIsSending(false)
     isSendingRef.current = false
-    if (continuousMode && shouldResume) {
+    if (shouldResume) {
       if (resumeDelayRef.current) {
         clearTimeout(resumeDelayRef.current)
       }
@@ -52,7 +50,7 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
         resumeListening()
       }, 350)
     }
-  }, [continuousMode, resumeListening])
+  }, [resumeListening])
 
   const { isSpeaking, speak } = useVoiceSynthesis(true, () => {
     finishResponseCycle(true)
@@ -133,12 +131,10 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     <div className="flex flex-col h-full bg-white rounded-[2rem] border border-brand-border/60 shadow-sm overflow-hidden">
       <AssistantHeader
         autoSend={autoSend}
-        continuousMode={continuousMode}
         isListening={isListening}
         isSending={isSending}
         statusLabel={statusLabel}
         onToggleAutoSend={() => setAutoSend((value) => !value)}
-        onToggleContinuousMode={() => setContinuousMode((value) => !value)}
         onClearHistory={clearHistory}
       />
 
@@ -157,7 +153,6 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
 
       <InputPanel
         autoSend={autoSend}
-        continuousMode={continuousMode}
         isListening={isListening}
         isSending={isSending}
         isSpeaking={isSpeaking}

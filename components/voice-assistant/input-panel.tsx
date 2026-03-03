@@ -8,7 +8,6 @@ interface InputPanelProps {
   isSpeaking: boolean
   speechSupported: boolean
   transcript: string
-  continuousMode: boolean
   autoSend: boolean
   onTranscriptChange: (value: string) => void
   onManualSend: () => void
@@ -22,7 +21,6 @@ export function InputPanel({
   isSpeaking,
   speechSupported,
   transcript,
-  continuousMode,
   autoSend,
   onTranscriptChange,
   onManualSend,
@@ -66,7 +64,7 @@ export function InputPanel({
           className="w-full h-11 rounded-xl bg-brand-gold text-white font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 shadow-sm"
         >
           <Mic size={16} />
-          {isSending ? 'Waiting for response...' : continuousMode ? 'Start Voice Session' : 'Tap to Speak'}
+          {isSending ? 'Waiting for response...' : 'Start Voice Session'}
         </button>
       ) : (
         <button
@@ -81,7 +79,7 @@ export function InputPanel({
       )}
 
       <p className="text-[10px] text-brand-stone text-center leading-relaxed">
-        Auto sends after 1.5s pause. Loop restarts listening after each reply. Say{' '}
+        Auto sends after 1.5s pause. Loop is always on and restarts listening after each reply. Say{' '}
         <strong className="text-brand-charcoal">"help"</strong> for quick guidance.
       </p>
     </div>

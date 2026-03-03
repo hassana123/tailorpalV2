@@ -5,23 +5,19 @@ import { cn } from '@/lib/utils'
 
 interface AssistantHeaderProps {
   autoSend: boolean
-  continuousMode: boolean
   isListening: boolean
   isSending: boolean
   statusLabel: string
   onToggleAutoSend: () => void
-  onToggleContinuousMode: () => void
   onClearHistory: () => void
 }
 
 export function AssistantHeader({
   autoSend,
-  continuousMode,
   isListening,
   isSending,
   statusLabel,
   onToggleAutoSend,
-  onToggleContinuousMode,
   onClearHistory,
 }: AssistantHeaderProps) {
   return (
@@ -60,34 +56,20 @@ export function AssistantHeader({
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex items-center gap-1">
-          <button
-            onClick={onToggleAutoSend}
-            title={autoSend ? 'Auto-send on' : 'Auto-send off'}
-            className={cn(
-              'text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors',
-              autoSend
-                ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
-                : 'bg-brand-cream text-brand-stone border-brand-border',
-            )}
-          >
-            Auto
-          </button>
-          <button
-            onClick={onToggleContinuousMode}
-            title={continuousMode ? 'Continuous on' : 'Continuous off'}
-            className={cn(
-              'text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors',
-              continuousMode
-                ? 'bg-sky-100 text-sky-700 border-sky-200'
-                : 'bg-brand-cream text-brand-stone border-brand-border',
-            )}
-          >
-            Loop
-          </button>
-        </div>
+        <button
+          onClick={onToggleAutoSend}
+          title={autoSend ? 'Auto-send on' : 'Auto-send off'}
+          className={cn(
+            'text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors',
+            autoSend
+              ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
+              : 'bg-brand-cream text-brand-stone border-brand-border',
+          )}
+        >
+          Auto
+        </button>
         <p className="text-[10px] text-brand-stone">
-          Auto sends after 1.5s pause. Loop restarts mic after each reply. Voice replies stay on.
+          Auto sends after 1.5s pause. Loop mode is always on and restarts mic after each reply.
         </p>
       </div>
 
