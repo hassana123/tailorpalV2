@@ -6,7 +6,7 @@ export function useVoiceSynthesis(soundEnabled: boolean, onSpeechEnd?: () => voi
   const [isSpeaking, setIsSpeaking] = useState(false)
 
   const speak = useCallback((text: string) => {
-    if (!soundEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return
+    if (!soundEnabled || typeof window === 'undefined' || !('speechSynthesis' in window)) return false
 
     window.speechSynthesis.cancel()
     const utterance = new SpeechSynthesisUtterance(text)
@@ -30,8 +30,12 @@ export function useVoiceSynthesis(soundEnabled: boolean, onSpeechEnd?: () => voi
       setIsSpeaking(false)
       onSpeechEnd?.()
     }
-    utterance.onerror = () => setIsSpeaking(false)
+    utterance.onerror = () => {
+      setIsSpeaking(false)
+      onSpeechEnd?.()
+    }
     window.speechSynthesis.speak(utterance)
+    return true
   }, [onSpeechEnd, soundEnabled])
 
   return {

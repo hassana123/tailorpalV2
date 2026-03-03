@@ -1,9 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import {
-  SILENCE_TIMEOUT_MS,
-} from '@/components/voice-assistant/constants'
+import { SILENCE_TIMEOUT_MS } from '@/components/voice-assistant/constants'
 import { SpeechRecognitionCtor, SpeechRecognitionInstance } from '@/components/voice-assistant/types'
 
 interface UseVoiceRecognitionOptions {
@@ -54,6 +52,7 @@ export function useVoiceRecognition({
   const queueAutoSend = useCallback(() => {
     clearSilenceTimer()
     silenceTimerRef.current = setTimeout(() => {
+      silenceTimerRef.current = null
       const text = pendingTranscriptRef.current.trim()
       if (!text || isSendingRef.current) return
       onAutoSend(text)
@@ -85,6 +84,8 @@ export function useVoiceRecognition({
     }
 
     recognition.onresult = (event) => {
+      if (isSendingRef.current) return
+
       let interim = ''
       let finalText = ''
       for (let index = event.resultIndex; index < event.results.length; index++) {
@@ -104,6 +105,7 @@ export function useVoiceRecognition({
     }
 
     recognition.onspeechend = () => {
+      if (isSendingRef.current) return
       if (autoSendRef.current && pendingTranscriptRef.current.trim()) queueAutoSend()
     }
 
@@ -130,13 +132,14 @@ export function useVoiceRecognition({
   }, [clearSilenceTimer, queueAutoSend])
 
   const startListening = useCallback(() => {
-    if (!recognitionRef.current) return
+    if (!recognitionRef.current || isSendingRef.current) return
+    clearSilenceTimer()
     pendingTranscriptRef.current = ''
     setTranscript('')
     setInterimTranscript('')
     shouldKeepListeningRef.current = true
     tryStartRecognition(recognitionRef.current)
-  }, [])
+  }, [clearSilenceTimer])
 
   const stopListening = useCallback(() => {
     clearSilenceTimer()

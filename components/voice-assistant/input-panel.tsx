@@ -66,7 +66,7 @@ export function InputPanel({
           className="w-full h-11 rounded-xl bg-brand-gold text-white font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 shadow-sm"
         >
           <Mic size={16} />
-          {continuousMode ? 'Start Voice Session' : 'Tap to Speak'}
+          {isSending ? 'Waiting for response...' : continuousMode ? 'Start Voice Session' : 'Tap to Speak'}
         </button>
       ) : (
         <button
@@ -75,13 +75,14 @@ export function InputPanel({
         >
           <MicOff size={16} />
           <span className="flex items-center gap-1.5">
-            {isSpeaking ? 'Speaking...' : autoSend ? 'Listening - auto-send on' : 'Listening - tap to stop'}
+            {isSpeaking ? 'Speaking...' : autoSend ? 'Listening - sends after 5s pause' : 'Listening - tap to stop'}
           </span>
         </button>
       )}
 
-      <p className="text-[10px] text-brand-stone text-center">
-        Say <strong className="text-brand-charcoal">"help"</strong> for quick guidance
+      <p className="text-[10px] text-brand-stone text-center leading-relaxed">
+        Auto sends after 5s pause. Loop restarts listening after each reply. Say{' '}
+        <strong className="text-brand-charcoal">"help"</strong> for quick guidance.
       </p>
     </div>
   )

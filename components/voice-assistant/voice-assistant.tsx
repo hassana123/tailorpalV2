@@ -13,7 +13,6 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const [autoSend, setAutoSend] = useState(true)
   const [continuousMode, setContinuousMode] = useState(true)
   const [isSending, setIsSending] = useState(false)
-  const [soundEnabled, setSoundEnabled] = useState(true)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [showHelp, setShowHelp] = useState(false)
 
@@ -40,7 +39,11 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     onAutoSend: (text) => sendCommand(text),
   })
 
-  const { isSpeaking, speak } = useVoiceSynthesis(soundEnabled, resumeListening)
+  const { isSpeaking, speak } = useVoiceSynthesis(true, () => {
+    if (continuousMode) {
+      resumeListening()
+    }
+  })
 
   useEffect(() => {
     isSendingRef.current = isSending
@@ -55,6 +58,10 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const sendCommand = useCallback(async (rawCommand: string) => {
     const text = rawCommand.trim()
     if (!text || isSendingRef.current) return
+
+    clearSilenceTimer()
+
+    let shouldResumeWithoutSpeech = false
 
     setIsSending(true)
     isSendingRef.current = true
@@ -73,17 +80,19 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
       const payload = await response.json()
       const reply = typeof payload?.reply === 'string' ? payload.reply : payload?.error ?? 'I could not process that command.'
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }])
-      speak(reply)
+      shouldResumeWithoutSpeech = !speak(reply)
     } catch {
       const reply = 'Request failed. Please check your connection and try again.'
       setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }])
-      speak(reply)
+      shouldResumeWithoutSpeech = !speak(reply)
     } finally {
       setIsSending(false)
       isSendingRef.current = false
-      if (continuousMode) resumeListening()
+      if (continuousMode && shouldResumeWithoutSpeech) {
+        resumeListening()
+      }
     }
-  }, [continuousMode, isListening, pauseListening, pendingTranscriptRef, resumeListening, setTranscript, shopId, speak])
+  }, [clearSilenceTimer, continuousMode, isListening, pauseListening, pendingTranscriptRef, resumeListening, setTranscript, shopId, speak])
 
   const clearHistory = () => {
     clearSilenceTimer()
@@ -111,11 +120,9 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
         continuousMode={continuousMode}
         isListening={isListening}
         isSending={isSending}
-        soundEnabled={soundEnabled}
         statusLabel={statusLabel}
         onToggleAutoSend={() => setAutoSend((value) => !value)}
         onToggleContinuousMode={() => setContinuousMode((value) => !value)}
-        onToggleSound={() => setSoundEnabled((value) => !value)}
         onClearHistory={clearHistory}
       />
 

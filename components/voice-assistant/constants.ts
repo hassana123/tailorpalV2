@@ -1,4 +1,4 @@
-export const SILENCE_TIMEOUT_MS = 2200
+export const SILENCE_TIMEOUT_MS = 5000
 export const MAX_MESSAGES = 50
 
 export const HELP_TEXT = `Say simple starters and I will guide you:
@@ -16,4 +16,8 @@ export const HELP_TEXT = `Say simple starters and I will guide you:
 During guided steps:
 - say "skip" for optional fields
 - say "yes" to confirm save
-- say "no" or "cancel" to stop`
+- say "no" or "cancel" to stop
+
+Controls:
+- Auto: sends after 5 seconds of silence
+- Loop: after assistant reply, microphone restarts automatically`
