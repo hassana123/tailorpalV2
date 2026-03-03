@@ -4,11 +4,13 @@ import { Loader2, Mic, MicOff, Send } from 'lucide-react'
 
 interface InputPanelProps {
   isListening: boolean
+  isStarting: boolean
   isSending: boolean
   isSpeaking: boolean
   speechSupported: boolean
   transcript: string
   autoSend: boolean
+  voiceError: string
   onTranscriptChange: (value: string) => void
   onManualSend: () => void
   onStartListening: () => void
@@ -17,11 +19,13 @@ interface InputPanelProps {
 
 export function InputPanel({
   isListening,
+  isStarting,
   isSending,
   isSpeaking,
   speechSupported,
   transcript,
   autoSend,
+  voiceError,
   onTranscriptChange,
   onManualSend,
   onStartListening,
@@ -60,11 +64,11 @@ export function InputPanel({
       {!isListening ? (
         <button
           onClick={onStartListening}
-          disabled={!speechSupported || isSending}
+          disabled={!speechSupported || isSending || isStarting}
           className="w-full h-11 rounded-xl bg-brand-gold text-white font-semibold text-sm flex items-center justify-center gap-2 hover:opacity-90 transition-opacity disabled:opacity-40 shadow-sm"
         >
-          <Mic size={16} />
-          {isSending ? 'Waiting for response...' : 'Start Voice Session'}
+          {isStarting || isSending ? <Loader2 size={16} className="animate-spin" /> : <Mic size={16} />}
+          {isSending ? 'Waiting for response...' : isStarting ? 'Starting microphone...' : 'Start Listening'}
         </button>
       ) : (
         <button
@@ -76,6 +80,12 @@ export function InputPanel({
             {isSpeaking ? 'Speaking...' : autoSend ? 'Listening - sends after 1.5s pause' : 'Listening - tap to stop'}
           </span>
         </button>
+      )}
+
+      {voiceError && (
+        <p className="text-xs text-red-600 bg-red-50 rounded-xl px-3 py-2 border border-red-100">
+          {voiceError}
+        </p>
       )}
 
       <p className="text-[10px] text-brand-stone text-center leading-relaxed">

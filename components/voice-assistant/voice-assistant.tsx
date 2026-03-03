@@ -22,6 +22,8 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
 
   const {
     isListening,
+    isStarting,
+    voiceError,
     speechSupported,
     transcript,
     interimTranscript,
@@ -121,6 +123,8 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
 
   const statusLabel = isSpeaking
     ? 'Speaking...'
+    : isStarting
+    ? 'Starting mic...'
     : isListening
     ? 'Listening...'
     : isSending
@@ -154,10 +158,12 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
       <InputPanel
         autoSend={autoSend}
         isListening={isListening}
+        isStarting={isStarting}
         isSending={isSending}
         isSpeaking={isSpeaking}
         speechSupported={speechSupported}
         transcript={transcript}
+        voiceError={voiceError}
         onTranscriptChange={(value) => {
           setTranscript(value)
           pendingTranscriptRef.current = value
