@@ -45,6 +45,15 @@ export async function GET(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const canManageInventory = await hasStaffPermission(
+      user.id,
+      params.data.shopId,
+      'manage_inventory',
+    )
+    if (!canManageInventory) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from('shop_inventory_items')
       .select('*')

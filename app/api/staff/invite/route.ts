@@ -1,1 +1,1 @@
-export { POST } from '../invitations/route'
+export { POST, DELETE } from '../invitations/route'

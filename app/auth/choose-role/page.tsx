@@ -99,6 +99,7 @@ export default function ChooseRolePage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const code = searchParams.get('code')
+  const inviteCode = searchParams.get('inviteCode')?.trim().toUpperCase() || ''
 
   useEffect(() => {
     if (!code) return
@@ -170,7 +171,9 @@ export default function ChooseRolePage() {
       toast.success('Role saved successfully.')
 
       if (selected === 'shop_owner') router.push('/dashboard/shop/setup')
-      else if (selected === 'staff') router.push('/dashboard/staff/onboarding')
+      else if (selected === 'staff') {
+        router.push(inviteCode ? `/dashboard/staff/onboarding?code=${encodeURIComponent(inviteCode)}` : '/dashboard/staff/onboarding')
+      }
       else router.push('/dashboard/customer')
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'An error occurred'

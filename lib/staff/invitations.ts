@@ -54,13 +54,31 @@ export function buildInviteLinks(appUrl: string, token: string, inviteCode: stri
   return { tokenInviteLink, codeInviteLink }
 }
 
-export function buildSocialShareLinks(inviteLink: string, inviteCode: string, shopName: string) {
-  const text = `Join ${shopName} on TailorPal.\nInvite link: ${inviteLink}\nInvite code: ${inviteCode}`
+export function buildStaffSignUpLink(appUrl: string, inviteCode: string) {
+  return `${appUrl}/auth/sign-up?role=staff&inviteCode=${inviteCode}`
+}
+
+export function buildStaffOnboardingLink(appUrl: string, inviteCode: string) {
+  return `${appUrl}/dashboard/staff/onboarding?code=${inviteCode}`
+}
+
+export function buildSocialShareLinks(
+  signUpLink: string,
+  onboardingLink: string,
+  inviteCode: string,
+  shopName: string,
+) {
+  const text =
+    `Join ${shopName} on TailorPal.\n` +
+    `1) Sign up: ${signUpLink}\n` +
+    `2) Choose Staff role\n` +
+    `3) Open onboarding: ${onboardingLink}\n` +
+    `4) Invite code: ${inviteCode}`
   const encodedText = encodeURIComponent(text)
   return {
     whatsapp: `https://wa.me/?text=${encodedText}`,
     twitter: `https://twitter.com/intent/tweet?text=${encodedText}`,
-    telegram: `https://t.me/share/url?url=${encodeURIComponent(inviteLink)}&text=${encodedText}`,
+    telegram: `https://t.me/share/url?url=${encodeURIComponent(signUpLink)}&text=${encodedText}`,
   }
 }
 
@@ -70,6 +88,8 @@ export async function sendInviteViaSupabaseAuth(params: {
   inviterEmail: string
   redirectTo: string
   inviteCode: string
+  signUpLink: string
+  onboardingLink: string
 }) {
   const adminClient = createAdminClient()
   const { error } = await adminClient.auth.admin.inviteUserByEmail(params.to, {
@@ -78,6 +98,10 @@ export async function sendInviteViaSupabaseAuth(params: {
       inviter_email: params.inviterEmail,
       invited_shop_name: params.shopName,
       invite_code: params.inviteCode,
+      signup_link: params.signUpLink,
+      onboarding_link: params.onboardingLink,
+      invite_steps:
+        '1) Create account. 2) Choose Staff role. 3) Open Staff Onboarding. 4) Enter invite code to accept.',
     },
   })
 

@@ -3,7 +3,7 @@
 import { createClient } from '@/lib/supabase/client'
 import { getAuthErrorMessage } from '@/lib/auth/errors'
 import Link from 'next/link'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import {
@@ -54,6 +54,8 @@ export default function SignUpPage() {
   const [showPassword, setShowPassword]         = useState(false)
   const [showRepeat, setShowRepeat]             = useState(false)
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const inviteCode = searchParams.get('inviteCode')?.trim().toUpperCase() || ''
 
   const passwordsMatch = repeatPassword.length > 0 && password === repeatPassword
 
@@ -100,7 +102,10 @@ export default function SignUpPage() {
   const handleGoogleSignUp = async () => {
     setGoogleLoading(true)
     setError(null)
-    const next = encodeURIComponent('/auth/choose-role')
+    const nextTarget = inviteCode
+      ? `/auth/choose-role?inviteCode=${encodeURIComponent(inviteCode)}`
+      : '/auth/choose-role'
+    const next = encodeURIComponent(nextTarget)
     const origin = encodeURIComponent(window.location.origin)
     window.location.assign(`/api/auth/google?mode=signup&next=${next}&origin=${origin}`)
   }
@@ -124,6 +129,13 @@ export default function SignUpPage() {
       <OrDivider label="or sign up with email" />
 
       {error && <AuthError message={error} />}
+
+      {inviteCode && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs text-amber-800">
+          Staff invite detected. After sign-up: choose <strong>Staff</strong> role, then use code{' '}
+          <strong>{inviteCode}</strong> on the onboarding page.
+        </div>
+      )}
 
       <form onSubmit={handleSignUp} className="space-y-4">
         <Field label="Email address" htmlFor="email">

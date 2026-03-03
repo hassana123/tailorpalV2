@@ -37,44 +37,12 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   } = useVoiceRecognition({
     autoSend,
     isSending,
-    onAutoSend: (text) => sendCommand(text),
+    onAutoSend: useCallback((text: string) => {
+      sendCommand(text)
+    }, []),
   })
 
-  const finishResponseCycle = useCallback((shouldResume: boolean) => {
-    setIsSending(false)
-    isSendingRef.current = false
-    if (shouldResume) {
-      if (resumeDelayRef.current) {
-        clearTimeout(resumeDelayRef.current)
-      }
-      resumeDelayRef.current = setTimeout(() => {
-        resumeDelayRef.current = null
-        resumeListening()
-      }, 350)
-    }
-  }, [resumeListening])
-
-  const { isSpeaking, speak } = useVoiceSynthesis(true, () => {
-    finishResponseCycle(true)
-  })
-
-  useEffect(() => {
-    isSendingRef.current = isSending
-  }, [isSending])
-
-  useEffect(() => () => {
-    if (resumeDelayRef.current) {
-      clearTimeout(resumeDelayRef.current)
-      resumeDelayRef.current = null
-    }
-  }, [])
-
-  useEffect(() => {
-    if (messagesContainerRef.current) {
-      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
-    }
-  }, [messages, interimTranscript])
-
+  // Wrap sendCommand in useCallback to stabilize reference
   const sendCommand = useCallback(async (rawCommand: string) => {
     const text = rawCommand.trim()
     if (!text || isSendingRef.current) return
@@ -87,7 +55,12 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     isSendingRef.current = true
     pendingTranscriptRef.current = ''
     setTranscript('')
-    setMessages((prev) => [...prev.slice(-MAX_MESSAGES), { id: crypto.randomUUID(), role: 'user', text, timestamp: new Date() }])
+
+    // Add user message
+    setMessages((prev) => [
+      ...prev.slice(-MAX_MESSAGES),
+      { id: crypto.randomUUID(), role: 'user', text, timestamp: new Date() }
+    ])
 
     try {
       const response = await fetch('/api/voice/process', {
@@ -95,41 +68,105 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, shopId }),
       })
+
       const payload = await response.json()
-      const reply = typeof payload?.reply === 'string' ? payload.reply : payload?.error ?? 'I could not process that command.'
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }])
+      const reply = typeof payload?.reply === 'string'
+        ? payload.reply
+        : payload?.error ?? 'I could not process that command.'
+
+      // Add assistant message
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }
+      ])
+
+      // Speak the response
       startedSpeech = speak(reply)
-    } catch {
+    } catch (error) {
+      console.error('[Voice] Send error:', error)
       const reply = 'Request failed. Please check your connection and try again.'
-      setMessages((prev) => [...prev, { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }])
+      setMessages((prev) => [
+        ...prev,
+        { id: crypto.randomUUID(), role: 'assistant', text: reply, timestamp: new Date() }
+      ])
       startedSpeech = speak(reply)
     } finally {
+      // If speech didn't start (or synthesis not available), resume immediately
       if (!startedSpeech) {
         finishResponseCycle(true)
       }
     }
-  }, [clearSilenceTimer, finishResponseCycle, pauseListening, pendingTranscriptRef, setTranscript, shopId, speak])
+  }, [clearSilenceTimer, pauseListening, pendingTranscriptRef, setTranscript, shopId])
 
-  const clearHistory = () => {
+  // Handle end of response cycle (after speech finishes or error)
+  const finishResponseCycle = useCallback((shouldResume: boolean) => {
+    setIsSending(false)
+    isSendingRef.current = false
+
+    if (shouldResume) {
+      // Clear any existing resume timer
+      if (resumeDelayRef.current) {
+        clearTimeout(resumeDelayRef.current)
+      }
+
+      // Resume listening after a short delay
+      resumeDelayRef.current = setTimeout(() => {
+        resumeDelayRef.current = null
+        resumeListening()
+      }, 400)
+    }
+  }, [resumeListening])
+
+  // Voice synthesis hook
+  const { isSpeaking, speak } = useVoiceSynthesis(true, () => {
+    finishResponseCycle(true)
+  })
+
+  // Keep isSendingRef in sync
+  useEffect(() => {
+    isSendingRef.current = isSending
+  }, [isSending])
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (resumeDelayRef.current) {
+        clearTimeout(resumeDelayRef.current)
+        resumeDelayRef.current = null
+      }
+    }
+  }, [])
+
+  // Auto-scroll messages
+  useEffect(() => {
+    if (messagesContainerRef.current) {
+      messagesContainerRef.current.scrollTop = messagesContainerRef.current.scrollHeight
+    }
+  }, [messages, interimTranscript])
+
+  // Clear conversation history
+  const clearHistory = useCallback(() => {
     clearSilenceTimer()
     setMessages([])
     setTranscript('')
     pendingTranscriptRef.current = ''
-  }
+  }, [clearSilenceTimer, setTranscript, pendingTranscriptRef])
 
+  // Compute display transcript (final + interim)
   const displayTranscript = interimTranscript
     ? `${transcript}${transcript ? ' ' : ''}${interimTranscript}`
     : transcript
 
+  // Compute status label
   const statusLabel = isSpeaking
     ? 'Speaking...'
     : isStarting
-    ? 'Starting mic...'
+    ? 'Starting microphone...'
     : isListening
-    ? 'Listening...'
+    ? 'Listening — speak now'
     : isSending
     ? 'Processing...'
-    : 'Ready'
+    : 'Ready — press Start Listening'
 
   return (
     <div className="flex flex-col h-full bg-white rounded-[2rem] border border-brand-border/60 shadow-sm overflow-hidden">

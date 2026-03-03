@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import {
   buildInviteLinks,
+  buildStaffOnboardingLink,
+  buildStaffSignUpLink,
   buildSocialShareLinks,
   createInviteToken,
   createUniqueInviteCode,
@@ -63,6 +65,8 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
     const appUrl = getRequestAppUrl(request)
     const { tokenInviteLink, codeInviteLink } = buildInviteLinks(appUrl, token, inviteCode)
+    const signUpLink = buildStaffSignUpLink(appUrl, inviteCode)
+    const onboardingLink = buildStaffOnboardingLink(appUrl, inviteCode)
 
     const { error: updateError } = await supabase
       .from('staff_invitations')
@@ -87,14 +91,16 @@ export async function POST(request: NextRequest) {
           to: invitation.email,
           shopName: shop.name,
           inviterEmail: user.email ?? 'A shop owner',
-          redirectTo: tokenInviteLink,
+          redirectTo: signUpLink,
           inviteCode,
+          signUpLink,
+          onboardingLink,
         })
         emailSent = true
       } catch (emailError) {
         console.error('Failed to resend invitation email:', emailError)
         warning =
-          'Invite refreshed but Supabase email delivery failed. Share the link or code manually.'
+          'Invite refreshed but email delivery failed. Share the signup link and invite code manually.'
       }
     }
 
@@ -105,7 +111,7 @@ export async function POST(request: NextRequest) {
       inviteLink: codeInviteLink,
       tokenInviteLink,
       inviteCode,
-      shareLinks: buildSocialShareLinks(codeInviteLink, inviteCode, shop.name),
+      shareLinks: buildSocialShareLinks(signUpLink, codeInviteLink, inviteCode, shop.name),
       warning,
     })
   } catch (error) {

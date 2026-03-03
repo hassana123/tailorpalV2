@@ -96,6 +96,11 @@ export async function POST(
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
     }
 
+    const canManageCatalog = await hasStaffPermission(user.id, params.data.shopId, 'manage_catalog')
+    if (!canManageCatalog) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
     const { data, error } = await supabase
       .from('shop_catalog_items')
       .insert([

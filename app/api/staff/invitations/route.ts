@@ -1,6 +1,8 @@
 import { createClient } from '@/lib/supabase/server'
 import {
   buildInviteLinks,
+  buildStaffOnboardingLink,
+  buildStaffSignUpLink,
   buildSocialShareLinks,
   createInviteToken,
   createUniqueInviteCode,
@@ -16,6 +18,10 @@ const inviteSchema = z.object({
   shopId: z.string().uuid(),
   email: z.string().email(),
   deliveryMethod: z.enum(['supabase_email', 'manual_link']).default('supabase_email'),
+})
+
+const deleteSchema = z.object({
+  invitationId: z.string().uuid(),
 })
 
 export async function POST(request: NextRequest) {
@@ -72,6 +78,8 @@ export async function POST(request: NextRequest) {
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
     const appUrl = getRequestAppUrl(request)
     const { tokenInviteLink, codeInviteLink } = buildInviteLinks(appUrl, token, inviteCode)
+    const signUpLink = buildStaffSignUpLink(appUrl, inviteCode)
+    const onboardingLink = buildStaffOnboardingLink(appUrl, inviteCode)
 
     const { data: invitation, error: inviteError } = await supabase
       .from('staff_invitations')
@@ -161,14 +169,16 @@ export async function POST(request: NextRequest) {
           to: inviteEmail,
           shopName: shop.name,
           inviterEmail: user.email ?? 'A shop owner',
-          redirectTo: tokenInviteLink,
+          redirectTo: signUpLink,
           inviteCode,
+          signUpLink,
+          onboardingLink,
         })
         emailSent = true
       } catch (emailError) {
         console.error('Failed to send invitation email:', emailError)
         warning =
-          'Invitation created but Supabase email delivery failed. Share the link or code manually.'
+          'Invitation created but email delivery failed. Share the signup link and invite code manually.'
       }
     }
 
@@ -180,13 +190,91 @@ export async function POST(request: NextRequest) {
         inviteLink: codeInviteLink,
         tokenInviteLink,
         inviteCode,
-        shareLinks: buildSocialShareLinks(codeInviteLink, inviteCode, shop.name),
+        shareLinks: buildSocialShareLinks(signUpLink, codeInviteLink, inviteCode, shop.name),
         warning,
       },
       { status: emailSent || deliveryMethod === 'manual_link' ? 201 : 202 },
     )
   } catch (error) {
     console.error('Error in staff invitations POST:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function DELETE(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const parsed = deleteSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid payload', details: parsed.error.flatten() },
+        { status: 400 },
+      )
+    }
+
+    const { data: invitation, error: inviteError } = await supabase
+      .from('staff_invitations')
+      .select('id, shop_id, email, status, shops(owner_id)')
+      .eq('id', parsed.data.invitationId)
+      .single()
+
+    if (inviteError || !invitation) {
+      return NextResponse.json({ error: 'Invitation not found' }, { status: 404 })
+    }
+
+    const relation = invitation.shops as
+      | { owner_id: string }
+      | Array<{ owner_id: string }>
+      | null
+    const shop = Array.isArray(relation) ? relation[0] ?? null : relation
+    if (!shop || shop.owner_id !== user.id) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const { error: deleteInviteError } = await supabase
+      .from('staff_invitations')
+      .delete()
+      .eq('id', invitation.id)
+
+    if (deleteInviteError) {
+      console.error('Error deleting invitation:', deleteInviteError)
+      return NextResponse.json({ error: 'Failed to delete invitation' }, { status: 500 })
+    }
+
+    const { count: remainingPending } = await supabase
+      .from('staff_invitations')
+      .select('*', { count: 'exact', head: true })
+      .eq('shop_id', invitation.shop_id)
+      .eq('email', invitation.email)
+      .eq('status', 'pending')
+
+    if ((remainingPending ?? 0) === 0) {
+      const { data: pendingStaffRows } = await supabase
+        .from('shop_staff')
+        .select('id')
+        .eq('shop_id', invitation.shop_id)
+        .eq('email', invitation.email)
+        .eq('status', 'pending')
+
+      const pendingStaffIds = (pendingStaffRows ?? []).map((row) => row.id)
+      if (pendingStaffIds.length > 0) {
+        await supabase.from('shop_staff_permissions').delete().in('staff_id', pendingStaffIds)
+        await supabase.from('shop_staff').delete().in('id', pendingStaffIds)
+      }
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (error) {
+    console.error('Error in staff invitations DELETE:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

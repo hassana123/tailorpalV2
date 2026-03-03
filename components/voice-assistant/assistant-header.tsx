@@ -1,6 +1,6 @@
 'use client'
 
-import { Bot, Trash2 } from 'lucide-react'
+import { Bot, Trash2, Mic } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface AssistantHeaderProps {
@@ -26,26 +26,40 @@ export function AssistantHeader({
         <div className="relative flex items-center justify-center">
           <div
             className={cn(
-              'w-10 h-10 rounded-xl flex items-center justify-center transition-colors',
-              isListening ? 'bg-red-100' : isSending ? 'bg-amber-100' : 'bg-brand-gold/10',
+              'w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300',
+              isListening ? 'bg-red-100 scale-110' : isSending ? 'bg-amber-100' : 'bg-brand-gold/10',
             )}
           >
-            <Bot
-              size={18}
-              className={cn(
-                'transition-colors',
-                isListening ? 'text-red-500' : isSending ? 'text-amber-500' : 'text-brand-gold',
-              )}
-            />
+            {isListening ? (
+              <Mic size={18} className="text-red-500 animate-pulse" />
+            ) : (
+              <Bot
+                size={18}
+                className={cn(
+                  'transition-colors',
+                  isSending ? 'text-amber-500' : 'text-brand-gold',
+                )}
+              />
+            )}
           </div>
-          {(isListening || isSending) && (
-            <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border-2 border-white bg-red-500 animate-pulse" />
+          {isListening && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500 animate-ping" />
+          )}
+          {isListening && (
+            <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-red-500" />
           )}
         </div>
-        <div className="min-w-0">
+
+        <div className="min-w-0 flex-1">
           <h3 className="font-display text-base text-brand-ink">TailorPal Assistant</h3>
-          <p className="text-[10px] font-bold text-brand-stone uppercase tracking-wider">{statusLabel}</p>
+          <p className={cn(
+            "text-[10px] font-bold uppercase tracking-wider transition-colors",
+            isListening ? 'text-red-500' : isSending ? 'text-amber-500' : 'text-brand-stone'
+          )}>
+            {statusLabel}
+          </p>
         </div>
+
         <button
           onClick={onClearHistory}
           title="Clear conversation"
@@ -58,21 +72,22 @@ export function AssistantHeader({
       <div className="flex flex-wrap items-center gap-2">
         <button
           onClick={onToggleAutoSend}
-          title={autoSend ? 'Auto-send on' : 'Auto-send off'}
+          title={autoSend ? 'Auto-send is ON (2.5s pause)' : 'Auto-send is OFF (manual only)'}
           className={cn(
-            'text-[10px] font-bold px-2.5 py-1 rounded-full border transition-colors',
+            'text-[10px] font-bold px-3 py-1.5 rounded-full border transition-all',
             autoSend
               ? 'bg-emerald-100 text-emerald-700 border-emerald-200'
               : 'bg-brand-cream text-brand-stone border-brand-border',
           )}
         >
-          Auto
+          Auto: {autoSend ? 'ON' : 'OFF'}
         </button>
         <p className="text-[10px] text-brand-stone">
-          Auto sends after 1.5s pause. Loop mode is always on and restarts mic after each reply.
+          {autoSend
+            ? 'Sends after 2.5s silence. Loop mode always on.'
+            : 'Tap Send or Stop to submit. Loop mode always on.'}
         </p>
       </div>
-
     </div>
   )
 }

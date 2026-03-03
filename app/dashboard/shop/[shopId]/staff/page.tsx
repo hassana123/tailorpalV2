@@ -156,6 +156,8 @@ export default function StaffManagementPage() {
   const [isInviting, setIsInviting]             = useState(false)
   const [savingPermissionsFor, setSavingPermissionsFor] = useState<string | null>(null)
   const [sharingInviteId, setSharingInviteId]   = useState<string | null>(null)
+  const [deletingInviteId, setDeletingInviteId] = useState<string | null>(null)
+  const [deletingStaffId, setDeletingStaffId]   = useState<string | null>(null)
   const [appOrigin, setAppOrigin]               = useState('')
   const [permissionsByStaff, setPermissionsByStaff] = useState<Record<string, StaffPermissions>>({})
 
@@ -178,8 +180,6 @@ export default function StaffManagementPage() {
 
   useEffect(() => { void fetchData() }, [shopId])
   useEffect(() => {
-    console.log(appOrigin);
-    
     if (typeof window !== 'undefined') setAppOrigin(window.location.origin)
   }, [])
 
@@ -272,8 +272,8 @@ export default function StaffManagementPage() {
       setInviteModalOpen(false)
       setInviteResultOpen(true)
 
-      if (payload.emailSent) toast.success('Invitation sent via email.')
-      else if (deliveryMethod === 'manual_link') toast.success('Invite link and code generated.')
+      if (payload.emailSent) toast.success('Invitation email sent with signup + code instructions.')
+      else if (deliveryMethod === 'manual_link') toast.success('Signup link and invite code generated.')
       else toast.error(payload.warning || 'Invite created but email delivery failed.')
 
       await fetchData()
@@ -304,8 +304,8 @@ export default function StaffManagementPage() {
         shareLinks: payload.shareLinks,
       })
       setInviteResultOpen(true)
-      if (payload.emailSent) toast.success('Invitation resent.')
-      else if (mode === 'manual_link') toast.success('Fresh invite generated.')
+      if (payload.emailSent) toast.success('Invitation email resent.')
+      else if (mode === 'manual_link') toast.success('Fresh signup link and code generated.')
       else toast.error(payload.warning || 'Invite refreshed but email failed.')
       await fetchData()
     } catch (err) {
@@ -316,22 +316,68 @@ export default function StaffManagementPage() {
   }
 
   const handleRemoveStaff = async (staffId: string) => {
-    if (!confirm('Remove this staff member? This cannot be undone.')) return
+    if (!confirm('Remove this staff member access? You can restore by inviting again.')) return
     try {
+      setDeletingStaffId(staffId)
       const response = await fetch(`/api/staff/${staffId}`, { method: 'DELETE' })
-      if (!response.ok) throw new Error('Failed to remove staff member')
-      toast.success('Staff member removed')
+      const payload = await response.json().catch(() => null) as { error?: string } | null
+      if (!response.ok) throw new Error(payload?.error || 'Failed to remove staff member')
+      toast.success('Staff access removed')
       await fetchData()
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'An error occurred')
+    } finally {
+      setDeletingStaffId(null)
     }
   }
 
+  const handleDeleteStaffRecord = async (staffId: string) => {
+    if (!confirm('Delete this staff record permanently? This cannot be undone.')) return
+    try {
+      setDeletingStaffId(staffId)
+      const response = await fetch(`/api/staff/${staffId}?hard=true`, { method: 'DELETE' })
+      const payload = await response.json().catch(() => null) as { error?: string } | null
+      if (!response.ok) throw new Error(payload?.error || 'Failed to delete staff record')
+      toast.success('Staff record deleted')
+      await fetchData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete staff record')
+    } finally {
+      setDeletingStaffId(null)
+    }
+  }
+
+  const deleteInvitation = async (invitationId: string) => {
+    if (!confirm('Delete this invitation?')) return
+    try {
+      setDeletingInviteId(invitationId)
+      const response = await fetch('/api/staff/invitations', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ invitationId }),
+      })
+      const payload = await response.json().catch(() => null) as { error?: string } | null
+      if (!response.ok) throw new Error(payload?.error || 'Failed to delete invitation')
+      toast.success('Invitation deleted')
+      await fetchData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to delete invitation')
+    } finally {
+      setDeletingInviteId(null)
+    }
+  }
+
+  const buildStaffSignUpLink = (inviteCode: string) =>
+    `${appOrigin || 'http://localhost:3000'}/auth/sign-up?role=staff&inviteCode=${inviteCode}`
+
+  const buildInviteInstructionsText = (inviteCode: string, inviteLink: string) =>
+    `TailorPal staff onboarding:\n1) Sign up: ${buildStaffSignUpLink(inviteCode)}\n2) Choose role: Staff\n3) Open onboarding or use this link: ${inviteLink}\n4) Enter invite code: ${inviteCode}`
+
   const shareInvite = async () => {
     if (!latestInvite) return
-    const text = `TailorPal staff invite:\n${latestInvite.inviteLink}\nCode: ${latestInvite.inviteCode}`
+    const text = buildInviteInstructionsText(latestInvite.inviteCode, latestInvite.inviteLink)
     try {
-      if (navigator.share) await navigator.share({ title: 'TailorPal Staff Invite', text, url: latestInvite.inviteLink })
+      if (navigator.share) await navigator.share({ title: 'TailorPal Staff Invite', text, url: buildStaffSignUpLink(latestInvite.inviteCode) })
       else { await navigator.clipboard.writeText(text); toast.success('Invite details copied.') }
     } catch { /* user cancelled */ }
   }
@@ -399,10 +445,19 @@ export default function StaffManagementPage() {
       variant: 'default' as const,
     },
     {
-      label: 'Remove',
+      label: deletingStaffId === m.id ? 'Working...' : 'Remove Access',
       onClick: () => handleRemoveStaff(m.id),
       variant: 'destructive' as const,
     },
+    ...(m.status === 'revoked'
+      ? [
+          {
+            label: deletingStaffId === m.id ? 'Deleting...' : 'Delete Record',
+            onClick: () => handleDeleteStaffRecord(m.id),
+            variant: 'destructive' as const,
+          },
+        ]
+      : []),
   ]
 
   // ─── Invitations table columns ────────────────────────────────────────────
@@ -463,15 +518,24 @@ export default function StaffManagementPage() {
   ]
 
  const invitationActions = (inv: PendingInvitation) => [
+  ...(inv.status === 'pending'
+    ? [
+        {
+          label: sharingInviteId === inv.id ? 'Refreshing...' : 'Refresh Link',
+          onClick: () => void refreshInvitation(inv.id, 'manual_link'),
+          variant: 'default' as const,
+        },
+        {
+          label: sharingInviteId === inv.id ? 'Sending...' : 'Resend Email',
+          onClick: () => void refreshInvitation(inv.id, 'supabase_email'),
+          variant: 'outline' as const,
+        },
+      ]
+    : []),
   {
-    label: sharingInviteId === inv.id ? 'Refreshing...' : 'Refresh Link',
-    onClick: () => void refreshInvitation(inv.id, 'manual_link'),
-    variant: 'default' as const,
-  },
-  {
-    label: sharingInviteId === inv.id ? 'Sending...' : 'Resend Email',
-    onClick: () => void refreshInvitation(inv.id, 'supabase_email'),
-    variant: 'outline' as const,
+    label: deletingInviteId === inv.id ? 'Deleting...' : 'Delete Invite',
+    onClick: () => void deleteInvitation(inv.id),
+    variant: 'destructive' as const,
   },
 ]
 
@@ -538,7 +602,7 @@ export default function StaffManagementPage() {
       <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6">
         <div className="mb-4">
           <h2 className="font-display text-lg text-brand-ink">Pending Invitations</h2>
-          <p className="text-xs text-brand-stone mt-0.5">Refresh or resend any invite below</p>
+          <p className="text-xs text-brand-stone mt-0.5">Refresh, resend, or delete invitations</p>
         </div>
         <DataTable
           data={invitations}
@@ -555,7 +619,7 @@ export default function StaffManagementPage() {
         open={inviteModalOpen}
         onOpenChange={setInviteModalOpen}
         title="Invite Staff Member"
-        description="Choose how to deliver the invitation."
+        description="Share staff onboarding details with signup steps and invite code."
         onSubmit={handleInviteStaff}
         isSubmitting={isInviting}
         submitLabel="Create Invitation"
@@ -579,13 +643,13 @@ export default function StaffManagementPage() {
                 [
                   {
                     value: 'supabase_email' as DeliveryMethod,
-                    title: 'Send via Email',
-                    desc: 'TailorPal sends the invitation automatically.',
+                    title: 'Send Instructions Email',
+                    desc: 'Sends onboarding steps + signup link + invite code.',
                   },
                   {
                     value: 'manual_link' as DeliveryMethod,
-                    title: 'Generate Link & Code',
-                    desc: 'Share via WhatsApp, Instagram DM, etc.',
+                    title: 'Generate Signup + Code',
+                    desc: 'Share manually via WhatsApp, Instagram DM, etc.',
                   },
                 ] as const
               ).map((opt) => (
@@ -619,11 +683,22 @@ export default function StaffManagementPage() {
           open={inviteResultOpen}
           onOpenChange={setInviteResultOpen}
           title="Invitation Created"
-          description="Share this with your staff member immediately."
+          description="Share the signup flow and invite code with your staff member."
           hideFooter
           maxWidth="md"
         >
           <div className="space-y-4">
+
+            {/* Signup link */}
+            <div className="bg-brand-cream border border-brand-border rounded-xl p-4">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-[10px] font-bold text-brand-stone uppercase tracking-wider">Signup Link</p>
+                <CopyButton value={buildStaffSignUpLink(latestInvite.inviteCode)} label="Signup Link" />
+              </div>
+              <p className="text-xs text-brand-charcoal break-all font-mono leading-relaxed">
+                {buildStaffSignUpLink(latestInvite.inviteCode)}
+              </p>
+            </div>
 
             {/* Invite link */}
             <div className="bg-brand-cream border border-brand-border rounded-xl p-4">
@@ -676,7 +751,7 @@ export default function StaffManagementPage() {
               )}
               <button
                 onClick={async () => {
-                  const text = `Join TailorPal staff.\nLink: ${latestInvite.inviteLink}\nCode: ${latestInvite.inviteCode}`
+                  const text = buildInviteInstructionsText(latestInvite.inviteCode, latestInvite.inviteLink)
                   await navigator.clipboard.writeText(text)
                   toast.success('Copied for Instagram')
                 }}
@@ -688,7 +763,7 @@ export default function StaffManagementPage() {
 
             <p className="text-[11px] text-brand-stone/60 flex items-center gap-1.5">
               <Sparkles size={10} className="text-brand-gold" />
-              The link and code expire after the set period. Refresh from the invitations table if needed.
+              Staff flow: sign up, choose Staff role, then accept with invite code on onboarding.
             </p>
           </div>
         </ModalForm>

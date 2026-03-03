@@ -1,6 +1,6 @@
 'use client'
 
-import { ReactNode, useEffect, useMemo, useState } from 'react'
+import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AccountProfileDialog } from '@/components/dashboard/layout/AccountProfileDialog'
 import { DashboardHeader }      from '@/components/dashboard/layout/DashboardHeader'
@@ -19,6 +19,75 @@ import {
 } from 'lucide-react'
 import { toast } from 'sonner'
 import { createClient } from '@/lib/supabase/client'
+import {
+  EMPTY_STAFF_PERMISSIONS,
+  hasAnyOperationalPermission,
+  StaffPermissionSet,
+} from '@/lib/staff/permissions'
+
+type RouteGate =
+  | { allowed: true }
+  | { allowed: false; message: string; redirectTo: string }
+
+function getStaffRouteGate(
+  pathname: string,
+  shopId: string,
+  permissions: StaffPermissionSet,
+): RouteGate {
+  const base = `/dashboard/shop/${shopId}`
+  if (pathname === base || pathname.startsWith(`${base}/voice-assistant`)) {
+    if (pathname.startsWith(`${base}/voice-assistant`) && !hasAnyOperationalPermission(permissions)) {
+      return {
+        allowed: false,
+        message: 'You do not have access to Voice Assistant in this shop.',
+        redirectTo: '/dashboard/staff',
+      }
+    }
+    return { allowed: true }
+  }
+
+  if (pathname.startsWith(`${base}/customers`) && !permissions.can_manage_customers) {
+    return {
+      allowed: false,
+      message: 'You do not have customer access for this shop.',
+      redirectTo: '/dashboard/staff',
+    }
+  }
+
+  if (pathname.startsWith(`${base}/orders`) && !permissions.can_manage_orders) {
+    return {
+      allowed: false,
+      message: 'You do not have order access for this shop.',
+      redirectTo: '/dashboard/staff',
+    }
+  }
+
+  if (pathname.startsWith(`${base}/measurements`) && !permissions.can_manage_measurements) {
+    return {
+      allowed: false,
+      message: 'You do not have measurements access for this shop.',
+      redirectTo: '/dashboard/staff',
+    }
+  }
+
+  if (pathname.startsWith(`${base}/catalog`) && !permissions.can_manage_catalog) {
+    return {
+      allowed: false,
+      message: 'You do not have catalog access for this shop.',
+      redirectTo: '/dashboard/staff',
+    }
+  }
+
+  if (pathname.startsWith(`${base}/staff`) || pathname.startsWith(`${base}/settings`)) {
+    return {
+      allowed: false,
+      message: 'Only the shop owner can access this section.',
+      redirectTo: '/dashboard/staff',
+    }
+  }
+
+  return { allowed: true }
+}
 
 export default function ShopLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -37,10 +106,13 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   const [lastName, setLastName]   = useState('')
   const [userType, setUserType]   = useState<string | null>(null)
   const [shopName, setShopName]   = useState('')
+  const [isOwnerForShop, setIsOwnerForShop] = useState(false)
+  const [staffPermissions, setStaffPermissions] = useState<StaffPermissionSet>(EMPTY_STAFF_PERMISSIONS)
+  const deniedPathRef = useRef<string | null>(null)
 
   const shopId = pathname.match(/^\/dashboard\/shop\/([^/]+)/)?.[1]
 
-  useEffect(() => { void loadAccountProfile() }, [])
+  useEffect(() => { void loadAccountProfile() }, [shopId])
 
   const loadAccountProfile = async () => {
     try {
@@ -64,10 +136,50 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       if (shopId) {
         const { data: shop } = await supabase
           .from('shops')
-          .select('name')
+          .select('name, owner_id')
           .eq('id', shopId)
           .maybeSingle()
+
+        const isOwner = Boolean(shop?.owner_id && shop.owner_id === user.id)
+        setIsOwnerForShop(isOwner)
         setShopName(shop?.name ?? '')
+
+        if (!isOwner && profile?.user_type === 'staff') {
+          const { data: membership } = await supabase
+            .from('shop_staff')
+            .select('id')
+            .eq('shop_id', shopId)
+            .eq('user_id', user.id)
+            .eq('status', 'active')
+            .maybeSingle()
+
+          if (!membership?.id) {
+            setStaffPermissions(EMPTY_STAFF_PERMISSIONS)
+            router.replace('/dashboard/staff')
+            return
+          }
+
+          const { data: permissions } = await supabase
+            .from('shop_staff_permissions')
+            .select(
+              'can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
+            )
+            .eq('staff_id', membership.id)
+            .maybeSingle()
+
+          setStaffPermissions({
+            can_manage_customers: Boolean(permissions?.can_manage_customers),
+            can_manage_orders: Boolean(permissions?.can_manage_orders),
+            can_manage_measurements: Boolean(permissions?.can_manage_measurements),
+            can_manage_catalog: Boolean(permissions?.can_manage_catalog),
+            can_manage_inventory: Boolean(permissions?.can_manage_inventory),
+          })
+        } else {
+          setStaffPermissions(EMPTY_STAFF_PERMISSIONS)
+        }
+      } else {
+        setIsOwnerForShop(false)
+        setStaffPermissions(EMPTY_STAFF_PERMISSIONS)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load profile')
@@ -75,6 +187,26 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       setProfileLoading(false)
     }
   }
+
+  useEffect(() => {
+    if (!shopId) return
+    if (userType !== 'staff' || isOwnerForShop) {
+      deniedPathRef.current = null
+      return
+    }
+
+    const gate = getStaffRouteGate(pathname, shopId, staffPermissions)
+    if (!gate.allowed && deniedPathRef.current !== pathname) {
+      deniedPathRef.current = pathname
+      toast.error(gate.message)
+      router.replace(gate.redirectTo)
+      return
+    }
+
+    if (gate.allowed) {
+      deniedPathRef.current = null
+    }
+  }, [isOwnerForShop, pathname, router, shopId, staffPermissions, userType])
 
   const handleSaveProfile = async () => {
     if (!userId) return toast.error('Could not load your account. Please sign in again.')
@@ -108,26 +240,55 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   }
 
   const navItems = useMemo<DashboardNavItem[]>(
-    () =>
-      shopId
-        ? [
-            { href: `/dashboard/shop/${shopId}`,                  label: 'Dashboard',       icon: LayoutDashboard },
-            { href: `/dashboard/shop/${shopId}/customers`,         label: 'Customers',       icon: Users           },
-            { href: `/dashboard/shop/${shopId}/orders`,            label: 'Orders',          icon: ShoppingCart    },
-            { href: `/dashboard/shop/${shopId}/catalog`,           label: 'Catalog',         icon: Package         },
-            { href: `/dashboard/shop/${shopId}/measurements`,      label: 'Measurements',    icon: Ruler           },
-            { href: `/dashboard/shop/${shopId}/voice-assistant`,   label: 'Voice Assistant',           icon: Mic             },
-            { href: `/dashboard/shop/${shopId}/staff`,             label: 'Staff',           icon: Users           },
-            { href: `/dashboard/shop/${shopId}/settings`,          label: 'Settings',        icon: Settings        },
-          ]
-        : [{ href: '/dashboard/shop', label: 'Dashboard', icon: LayoutDashboard }],
-    [shopId],
+    () => {
+      if (!shopId) {
+        return [{ href: '/dashboard/shop', label: 'Dashboard', icon: LayoutDashboard }]
+      }
+
+      const ownerNav: DashboardNavItem[] = [
+        { href: `/dashboard/shop/${shopId}`, label: 'Dashboard', icon: LayoutDashboard },
+        { href: `/dashboard/shop/${shopId}/customers`, label: 'Customers', icon: Users },
+        { href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart },
+        { href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package },
+        { href: `/dashboard/shop/${shopId}/measurements`, label: 'Measurements', icon: Ruler },
+        { href: `/dashboard/shop/${shopId}/voice-assistant`, label: 'Voice Assistant', icon: Mic },
+        { href: `/dashboard/shop/${shopId}/staff`, label: 'Staff', icon: Users },
+        { href: `/dashboard/shop/${shopId}/settings`, label: 'Settings', icon: Settings },
+      ]
+
+      if (userType !== 'staff' || isOwnerForShop) {
+        return ownerNav
+      }
+
+      const staffNav: DashboardNavItem[] = [
+        { href: `/dashboard/shop/${shopId}`, label: 'Dashboard', icon: LayoutDashboard },
+      ]
+
+      if (staffPermissions.can_manage_customers) {
+        staffNav.push({ href: `/dashboard/shop/${shopId}/customers`, label: 'Customers', icon: Users })
+      }
+      if (staffPermissions.can_manage_orders) {
+        staffNav.push({ href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart })
+      }
+      if (staffPermissions.can_manage_catalog) {
+        staffNav.push({ href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package })
+      }
+      if (staffPermissions.can_manage_measurements) {
+        staffNav.push({ href: `/dashboard/shop/${shopId}/measurements`, label: 'Measurements', icon: Ruler })
+      }
+      if (hasAnyOperationalPermission(staffPermissions)) {
+        staffNav.push({ href: `/dashboard/shop/${shopId}/voice-assistant`, label: 'Voice Assistant', icon: Mic })
+      }
+
+      return staffNav
+    },
+    [isOwnerForShop, shopId, staffPermissions, userType],
   )
 
   // Primary items for bottom nav (max 5 for mobile UX)
   const primaryNavItems = useMemo(() => 
     navItems.filter(item => 
-      ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Voice'].includes(item.label)
+      ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Voice Assistant'].includes(item.label)
     ), [navItems]
   )
 
