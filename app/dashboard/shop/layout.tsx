@@ -12,6 +12,7 @@ import {
   Users,
   ShoppingCart,
   Package,
+  Boxes,
   Ruler,
   Mic,
   Settings,
@@ -28,6 +29,27 @@ import {
 type RouteGate =
   | { allowed: true }
   | { allowed: false; message: string; redirectTo: string }
+
+type StaffPermissionRow = {
+  can_manage_customers: boolean | null
+  can_manage_orders: boolean | null
+  can_manage_measurements: boolean | null
+  can_manage_catalog: boolean | null
+  can_manage_inventory: boolean | null
+}
+
+function mergeStaffPermissions(rows: StaffPermissionRow[]): StaffPermissionSet {
+  return rows.reduce<StaffPermissionSet>(
+    (acc, row) => ({
+      can_manage_customers: acc.can_manage_customers || Boolean(row.can_manage_customers),
+      can_manage_orders: acc.can_manage_orders || Boolean(row.can_manage_orders),
+      can_manage_measurements: acc.can_manage_measurements || Boolean(row.can_manage_measurements),
+      can_manage_catalog: acc.can_manage_catalog || Boolean(row.can_manage_catalog),
+      can_manage_inventory: acc.can_manage_inventory || Boolean(row.can_manage_inventory),
+    }),
+    EMPTY_STAFF_PERMISSIONS,
+  )
+}
 
 function getStaffRouteGate(
   pathname: string,
@@ -78,6 +100,14 @@ function getStaffRouteGate(
     }
   }
 
+  if (pathname.startsWith(`${base}/inventory`) && !permissions.can_manage_inventory) {
+    return {
+      allowed: false,
+      message: 'You do not have inventory access for this shop.',
+      redirectTo: '/dashboard/staff',
+    }
+  }
+
   if (pathname.startsWith(`${base}/staff`) || pathname.startsWith(`${base}/settings`)) {
     return {
       allowed: false,
@@ -107,7 +137,9 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   const [userType, setUserType]   = useState<string | null>(null)
   const [shopName, setShopName]   = useState('')
   const [isOwnerForShop, setIsOwnerForShop] = useState(false)
+  const [isStaffForShop, setIsStaffForShop] = useState(false)
   const [staffPermissions, setStaffPermissions] = useState<StaffPermissionSet>(EMPTY_STAFF_PERMISSIONS)
+  const [staffPermissionsLoaded, setStaffPermissionsLoaded] = useState(false)
   const deniedPathRef = useRef<string | null>(null)
 
   const shopId = pathname.match(/^\/dashboard\/shop\/([^/]+)/)?.[1]
@@ -117,6 +149,7 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   const loadAccountProfile = async () => {
     try {
       setProfileLoading(true)
+      setStaffPermissionsLoaded(false)
       const { data: { user }, error: userError } = await supabase.auth.getUser()
       if (userError || !user) return
 
@@ -144,45 +177,53 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         setIsOwnerForShop(isOwner)
         setShopName(shop?.name ?? '')
 
-        if (!isOwner && profile?.user_type === 'staff') {
-          const { data: membership } = await supabase
+        if (!isOwner) {
+          const { data: memberships } = await supabase
             .from('shop_staff')
             .select('id')
             .eq('shop_id', shopId)
             .eq('user_id', user.id)
             .eq('status', 'active')
-            .maybeSingle()
+            .order('updated_at', { ascending: false })
 
-          if (!membership?.id) {
+          const staffIds = (memberships ?? []).map((membership) => membership.id)
+          if (staffIds.length === 0) {
+            setIsStaffForShop(false)
             setStaffPermissions(EMPTY_STAFF_PERMISSIONS)
+            setStaffPermissionsLoaded(true)
             router.replace('/dashboard/staff')
             return
           }
 
-          const { data: permissions } = await supabase
+          setIsStaffForShop(true)
+
+          const { data: permissions, error: permissionsError } = await supabase
             .from('shop_staff_permissions')
             .select(
               'can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
             )
-            .eq('staff_id', membership.id)
-            .maybeSingle()
+            .in('staff_id', staffIds)
 
-          setStaffPermissions({
-            can_manage_customers: Boolean(permissions?.can_manage_customers),
-            can_manage_orders: Boolean(permissions?.can_manage_orders),
-            can_manage_measurements: Boolean(permissions?.can_manage_measurements),
-            can_manage_catalog: Boolean(permissions?.can_manage_catalog),
-            can_manage_inventory: Boolean(permissions?.can_manage_inventory),
-          })
+          if (permissionsError) {
+            throw permissionsError
+          }
+
+          setStaffPermissions(mergeStaffPermissions((permissions ?? []) as StaffPermissionRow[]))
+          setStaffPermissionsLoaded(true)
         } else {
+          setIsStaffForShop(false)
           setStaffPermissions(EMPTY_STAFF_PERMISSIONS)
+          setStaffPermissionsLoaded(true)
         }
       } else {
         setIsOwnerForShop(false)
+        setIsStaffForShop(false)
         setStaffPermissions(EMPTY_STAFF_PERMISSIONS)
+        setStaffPermissionsLoaded(true)
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to load profile')
+      setStaffPermissionsLoaded(true)
     } finally {
       setProfileLoading(false)
     }
@@ -190,7 +231,8 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!shopId) return
-    if (userType !== 'staff' || isOwnerForShop) {
+    if (!staffPermissionsLoaded) return
+    if (isOwnerForShop || !isStaffForShop) {
       deniedPathRef.current = null
       return
     }
@@ -206,7 +248,7 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
     if (gate.allowed) {
       deniedPathRef.current = null
     }
-  }, [isOwnerForShop, pathname, router, shopId, staffPermissions, userType])
+  }, [isOwnerForShop, isStaffForShop, pathname, router, shopId, staffPermissions, staffPermissionsLoaded])
 
   const handleSaveProfile = async () => {
     if (!userId) return toast.error('Could not load your account. Please sign in again.')
@@ -250,13 +292,14 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         { href: `/dashboard/shop/${shopId}/customers`, label: 'Customers', icon: Users },
         { href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart },
         { href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package },
+        { href: `/dashboard/shop/${shopId}/inventory`, label: 'Inventory', icon: Boxes },
         { href: `/dashboard/shop/${shopId}/measurements`, label: 'Measurements', icon: Ruler },
         { href: `/dashboard/shop/${shopId}/voice-assistant`, label: 'Voice Assistant', icon: Mic },
         { href: `/dashboard/shop/${shopId}/staff`, label: 'Staff', icon: Users },
         { href: `/dashboard/shop/${shopId}/settings`, label: 'Settings', icon: Settings },
       ]
 
-      if (userType !== 'staff' || isOwnerForShop) {
+      if (!isStaffForShop || isOwnerForShop) {
         return ownerNav
       }
 
@@ -273,6 +316,9 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       if (staffPermissions.can_manage_catalog) {
         staffNav.push({ href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package })
       }
+      if (staffPermissions.can_manage_inventory) {
+        staffNav.push({ href: `/dashboard/shop/${shopId}/inventory`, label: 'Inventory', icon: Boxes })
+      }
       if (staffPermissions.can_manage_measurements) {
         staffNav.push({ href: `/dashboard/shop/${shopId}/measurements`, label: 'Measurements', icon: Ruler })
       }
@@ -282,20 +328,20 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
 
       return staffNav
     },
-    [isOwnerForShop, shopId, staffPermissions, userType],
+    [isOwnerForShop, isStaffForShop, shopId, staffPermissions],
   )
 
   // Primary items for bottom nav (max 5 for mobile UX)
   const primaryNavItems = useMemo(() => 
     navItems.filter(item => 
-      ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Voice Assistant'].includes(item.label)
+      ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Inventory'].includes(item.label)
     ), [navItems]
   )
 
   // More menu items
   const secondaryNavItems = useMemo(() => 
     navItems.filter(item => 
-      !['Dashboard', 'Customers', 'Orders', 'Catalog', 'Voice'].includes(item.label)
+      !['Dashboard', 'Customers', 'Orders', 'Catalog', 'Inventory'].includes(item.label)
     ), [navItems]
   )
 

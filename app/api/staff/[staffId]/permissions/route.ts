@@ -40,7 +40,7 @@ export async function PATCH(
 
     const { data: staffMember, error: staffError } = await supabase
       .from('shop_staff')
-      .select('id, shop_id')
+      .select('id, shop_id, email')
       .eq('id', staffId)
       .single()
 
@@ -58,26 +58,46 @@ export async function PATCH(
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 
-    const updates: Record<string, unknown> = {
-      staff_id: staffId,
+    const { data: relatedStaffRows, error: relatedStaffError } = await supabase
+      .from('shop_staff')
+      .select('id')
+      .eq('shop_id', staffMember.shop_id)
+      .eq('email', staffMember.email)
+      .in('status', ['active', 'pending'])
+
+    if (relatedStaffError) {
+      console.error('Error loading related staff rows for permission sync:', relatedStaffError)
+      return NextResponse.json({ error: 'Failed to update staff permissions' }, { status: 500 })
+    }
+
+    const targetStaffIds = Array.from(
+      new Set([staffId, ...(relatedStaffRows ?? []).map((row) => row.id)]),
+    )
+
+    const sharedUpdates: Record<string, unknown> = {
       updated_at: new Date().toISOString(),
     }
 
     if (parsed.data.canManageCustomers !== undefined) {
-      updates.can_manage_customers = parsed.data.canManageCustomers
+      sharedUpdates.can_manage_customers = parsed.data.canManageCustomers
     }
     if (parsed.data.canManageOrders !== undefined) {
-      updates.can_manage_orders = parsed.data.canManageOrders
+      sharedUpdates.can_manage_orders = parsed.data.canManageOrders
     }
     if (parsed.data.canManageMeasurements !== undefined) {
-      updates.can_manage_measurements = parsed.data.canManageMeasurements
+      sharedUpdates.can_manage_measurements = parsed.data.canManageMeasurements
     }
     if (parsed.data.canManageCatalog !== undefined) {
-      updates.can_manage_catalog = parsed.data.canManageCatalog
+      sharedUpdates.can_manage_catalog = parsed.data.canManageCatalog
     }
     if (parsed.data.canManageInventory !== undefined) {
-      updates.can_manage_inventory = parsed.data.canManageInventory
+      sharedUpdates.can_manage_inventory = parsed.data.canManageInventory
     }
+
+    const updates = targetStaffIds.map((id) => ({
+      staff_id: id,
+      ...sharedUpdates,
+    }))
 
     const { data: permissions, error: permissionsError } = await supabase
       .from('shop_staff_permissions')
@@ -85,14 +105,20 @@ export async function PATCH(
       .select(
         'staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
       )
-      .single()
 
     if (permissionsError) {
       console.error('Error updating staff permissions:', permissionsError)
       return NextResponse.json({ error: 'Failed to update staff permissions' }, { status: 500 })
     }
 
-    return NextResponse.json({ permissions })
+    const selectedPermissions =
+      (permissions ?? []).find((entry) => entry.staff_id === staffId) ?? (permissions ?? [])[0] ?? null
+
+    if (!selectedPermissions) {
+      return NextResponse.json({ error: 'Failed to update staff permissions' }, { status: 500 })
+    }
+
+    return NextResponse.json({ permissions: selectedPermissions, updatedStaffIds: targetStaffIds })
   } catch (error) {
     console.error('Error in staff permissions PATCH:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })

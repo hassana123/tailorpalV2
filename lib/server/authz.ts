@@ -7,6 +7,23 @@ export type StaffPermission =
   | 'manage_catalog'
   | 'manage_inventory'
 
+type StaffPermissionRow = {
+  staff_id: string
+  can_manage_customers: boolean | null
+  can_manage_orders: boolean | null
+  can_manage_measurements: boolean | null
+  can_manage_catalog: boolean | null
+  can_manage_inventory: boolean | null
+}
+
+const STAFF_PERMISSION_COLUMN: Record<StaffPermission, keyof Omit<StaffPermissionRow, 'staff_id'>> = {
+  manage_customers: 'can_manage_customers',
+  manage_orders: 'can_manage_orders',
+  manage_measurements: 'can_manage_measurements',
+  manage_catalog: 'can_manage_catalog',
+  manage_inventory: 'can_manage_inventory',
+}
+
 export async function getCurrentUser() {
   const supabase = await createClient()
   const {
@@ -28,7 +45,7 @@ export async function isShopOwner(userId: string, shopId: string) {
     .select('id')
     .eq('id', shopId)
     .eq('owner_id', userId)
-    .single()
+    .maybeSingle()
 
   if (error) {
     return false
@@ -45,21 +62,21 @@ export async function hasShopAccess(userId: string, shopId: string) {
     .select('id')
     .eq('id', shopId)
     .eq('owner_id', userId)
-    .single()
+    .maybeSingle()
 
   if (owned) {
     return true
   }
 
-  const { data: staff } = await supabase
+  const { data: staffRows } = await supabase
     .from('shop_staff')
     .select('id')
     .eq('shop_id', shopId)
     .eq('user_id', userId)
     .eq('status', 'active')
-    .single()
+    .limit(1)
 
-  return !!staff
+  return Boolean(staffRows && staffRows.length > 0)
 }
 
 export async function hasStaffPermission(
@@ -74,48 +91,36 @@ export async function hasStaffPermission(
     .select('id')
     .eq('id', shopId)
     .eq('owner_id', userId)
-    .single()
+    .maybeSingle()
 
   if (owned) {
     return true
   }
 
-  const { data: staffMembership } = await supabase
+  const { data: staffMemberships } = await supabase
     .from('shop_staff')
     .select('id')
     .eq('shop_id', shopId)
     .eq('user_id', userId)
     .eq('status', 'active')
-    .maybeSingle()
+    .order('updated_at', { ascending: false })
 
-  if (!staffMembership?.id) {
+  const staffIds = (staffMemberships ?? []).map((membership) => membership.id)
+  if (staffIds.length === 0) {
     return false
   }
 
   const { data: permissions } = await supabase
     .from('shop_staff_permissions')
     .select(
-      'can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
+      'staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
     )
-    .eq('staff_id', staffMembership.id)
-    .maybeSingle()
+    .in('staff_id', staffIds)
 
-  if (!permissions) {
+  if (!permissions || permissions.length === 0) {
     return false
   }
 
-  if (permission === 'manage_customers') {
-    return Boolean(permissions.can_manage_customers)
-  }
-  if (permission === 'manage_orders') {
-    return Boolean(permissions.can_manage_orders)
-  }
-  if (permission === 'manage_measurements') {
-    return Boolean(permissions.can_manage_measurements)
-  }
-  if (permission === 'manage_catalog') {
-    return Boolean(permissions.can_manage_catalog)
-  }
-
-  return Boolean(permissions.can_manage_inventory)
+  const column = STAFF_PERMISSION_COLUMN[permission]
+  return (permissions as StaffPermissionRow[]).some((row) => Boolean(row[column]))
 }

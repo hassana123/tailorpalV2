@@ -186,18 +186,30 @@ export default function StaffManagementPage() {
   const fetchData = async () => {
     try {
       setIsLoading(true)
-      const [staffResult, invitationsResult, permissionsResult] = await Promise.all([
+      const [staffResult, invitationsResult] = await Promise.all([
         supabase.from('shop_staff').select('*').eq('shop_id', shopId).order('invited_at', { ascending: false }),
         supabase.from('staff_invitations').select('id, email, invite_code, status, expires_at, created_at').eq('shop_id', shopId).order('created_at', { ascending: false }),
-        supabase.from('shop_staff_permissions').select('staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory'),
       ])
       if (staffResult.error) throw staffResult.error
       if (invitationsResult.error) throw invitationsResult.error
-      if (permissionsResult.error) throw permissionsResult.error
 
-      setStaff((staffResult.data ?? []) as StaffMember[])
+      const staffRows = (staffResult.data ?? []) as StaffMember[]
+      const staffIds = staffRows.map((member) => member.id)
+
+      let permissionRows: StaffPermissions[] = []
+      if (staffIds.length > 0) {
+        const { data: permissionsData, error: permissionsError } = await supabase
+          .from('shop_staff_permissions')
+          .select('staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory')
+          .in('staff_id', staffIds)
+
+        if (permissionsError) throw permissionsError
+        permissionRows = (permissionsData ?? []) as StaffPermissions[]
+      }
+
+      setStaff(staffRows)
       setInvitations((invitationsResult.data ?? []) as PendingInvitation[])
-      const permMap = ((permissionsResult.data ?? []) as StaffPermissions[]).reduce<Record<string, StaffPermissions>>(
+      const permMap = permissionRows.reduce<Record<string, StaffPermissions>>(
         (acc, row) => { acc[row.staff_id] = row; return acc }, {}
       )
       setPermissionsByStaff(permMap)

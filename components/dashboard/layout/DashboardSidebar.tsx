@@ -15,7 +15,7 @@ interface DashboardSidebarProps {
 }
 
 // Group nav items like the reference image
-const MAIN_NAV_LABELS  = ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Measurements', 'Voice Assistant']
+const MAIN_NAV_LABELS  = ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Inventory', 'Measurements', 'Voice Assistant']
 const OTHER_NAV_LABELS = ['Staff', 'Settings']
 
 export function DashboardSidebar({
@@ -25,8 +25,10 @@ export function DashboardSidebar({
   isItemActive,
   onLogout,
 }: DashboardSidebarProps) {
-  const mainItems  = navItems.filter((i) => MAIN_NAV_LABELS.includes(i.label))
-  const otherItems = navItems.filter((i) => OTHER_NAV_LABELS.includes(i.label))
+  const mainItems = navItems.filter(
+    (item) => MAIN_NAV_LABELS.includes(item.label) || !OTHER_NAV_LABELS.includes(item.label),
+  )
+  const otherItems = navItems.filter((item) => OTHER_NAV_LABELS.includes(item.label))
 
   return (
     <aside

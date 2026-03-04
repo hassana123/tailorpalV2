@@ -75,20 +75,47 @@ export async function POST(request: NextRequest) {
     }
 
     // Use admin client here: invited users cannot read pending shop_staff rows via RLS.
-    const { data: existing, error: existingError } = await admin
+    const { data: existingRows, error: existingError } = await admin
       .from('shop_staff')
-      .select('id')
+      .select('id, status, created_at')
       .eq('shop_id', invitation.shop_id)
       .eq('email', invitation.email)
       .in('status', ['pending', 'active', 'revoked'])
       .order('created_at', { ascending: false })
-      .limit(1)
-      .maybeSingle()
 
     if (existingError) {
       console.error('Error checking existing staff record:', existingError)
       return NextResponse.json({ error: 'Failed to join shop' }, { status: 500 })
     }
+
+    const statusRank: Record<string, number> = {
+      active: 0,
+      pending: 1,
+      revoked: 2,
+    }
+
+    const existing =
+      existingRows?.reduce<{ id: string; status: string; created_at: string | null } | null>(
+        (selected, row) => {
+          if (!selected) {
+            return row
+          }
+
+          const selectedRank = statusRank[selected.status] ?? Number.MAX_SAFE_INTEGER
+          const rowRank = statusRank[row.status] ?? Number.MAX_SAFE_INTEGER
+          if (rowRank < selectedRank) {
+            return row
+          }
+          if (rowRank > selectedRank) {
+            return selected
+          }
+
+          const rowCreatedAt = row.created_at ? new Date(row.created_at).getTime() : 0
+          const selectedCreatedAt = selected.created_at ? new Date(selected.created_at).getTime() : 0
+          return rowCreatedAt > selectedCreatedAt ? row : selected
+        },
+        null,
+      ) ?? null
 
     let staffRecordId: string | null = null
 
@@ -142,6 +169,22 @@ export async function POST(request: NextRequest) {
         console.error('Error initializing staff permissions:', permissionInsertError)
         return NextResponse.json({ error: 'Failed to finalize staff access' }, { status: 500 })
       }
+
+      const { error: dedupeError } = await admin
+        .from('shop_staff')
+        .update({
+          status: 'revoked',
+          updated_at: nowIso,
+        })
+        .eq('shop_id', invitation.shop_id)
+        .eq('email', invitation.email)
+        .neq('id', staffRecordId)
+        .in('status', ['pending', 'active'])
+
+      if (dedupeError) {
+        console.error('Error normalizing duplicate staff rows:', dedupeError)
+        return NextResponse.json({ error: 'Failed to finalize staff access' }, { status: 500 })
+      }
     }
 
     const { error: invitationUpdateError } = await admin
@@ -161,7 +204,26 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    await supabase.from('profiles').update({ user_type: 'staff' }).eq('id', user.id)
+    const profilePayload = {
+      id: user.id,
+      user_type: 'staff',
+      updated_at: nowIso,
+    }
+
+    const { error: profileError } = await supabase
+      .from('profiles')
+      .upsert(profilePayload, { onConflict: 'id' })
+
+    if (profileError) {
+      const { error: adminProfileError } = await admin
+        .from('profiles')
+        .upsert(profilePayload, { onConflict: 'id' })
+
+      if (adminProfileError) {
+        console.error('Error updating staff profile role:', adminProfileError)
+        return NextResponse.json({ error: 'Failed to finalize staff profile' }, { status: 500 })
+      }
+    }
 
     return NextResponse.json({ shopId: invitation.shop_id })
   } catch (error) {

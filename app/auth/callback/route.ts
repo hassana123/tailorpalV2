@@ -74,25 +74,33 @@ export async function GET(request: NextRequest) {
   } = await supabase.auth.getUser()
 
   if (user) {
-    const { data: profile } = await supabase
+    const { data: profile, error: profileError } = await supabase
       .from('profiles')
       .select('user_type')
       .eq('id', user.id)
       .maybeSingle()
 
-    if (!requiresRoleSelection(profile)) {
-      if (requestedNext && next !== '/auth/choose-role') {
-        return withClearedNextCookie(NextResponse.redirect(new URL(next, appUrl)))
-      }
-      if (profile?.user_type === 'shop_owner') {
-        return withClearedNextCookie(NextResponse.redirect(new URL('/dashboard/shop', appUrl)))
-      }
-      if (profile?.user_type === 'staff') {
-        return withClearedNextCookie(NextResponse.redirect(new URL('/dashboard/staff', appUrl)))
-      }
-      if (profile?.user_type === 'customer') {
-        return withClearedNextCookie(NextResponse.redirect(new URL('/dashboard/customer', appUrl)))
-      }
+    if (profileError && profileError.code !== 'PGRST116') {
+      return buildAuthErrorRedirect(appUrl, getAuthErrorMessage(profileError, 'auth_callback_failed'))
+    }
+
+    if (requiresRoleSelection(profile)) {
+      const chooseRoleDestination =
+        requestedNext && next.startsWith('/auth/choose-role') ? next : '/auth/choose-role'
+      return withClearedNextCookie(NextResponse.redirect(new URL(chooseRoleDestination, appUrl)))
+    }
+
+    if (requestedNext && !next.startsWith('/auth/choose-role')) {
+      return withClearedNextCookie(NextResponse.redirect(new URL(next, appUrl)))
+    }
+    if (profile?.user_type === 'shop_owner') {
+      return withClearedNextCookie(NextResponse.redirect(new URL('/dashboard/shop', appUrl)))
+    }
+    if (profile?.user_type === 'staff') {
+      return withClearedNextCookie(NextResponse.redirect(new URL('/dashboard/staff', appUrl)))
+    }
+    if (profile?.user_type === 'customer') {
+      return withClearedNextCookie(NextResponse.redirect(new URL('/dashboard/customer', appUrl)))
     }
   }
 

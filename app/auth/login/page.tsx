@@ -41,7 +41,7 @@ export default function LoginPage() {
         .from('profiles')
         .select('user_type, created_at, updated_at')
         .eq('id', user?.id)
-        .single()
+        .maybeSingle()
       if (requiresRoleSelection(profile)) {
         toast.success('Signed in. Please select your role.')
         router.push('/auth/choose-role')
@@ -70,7 +70,7 @@ export default function LoginPage() {
   const handleGoogleLogin = async () => {
     setGoogleLoading(true)
     setError(null)
-    const next = encodeURIComponent(nextPath ?? '/dashboard/customer')
+    const next = encodeURIComponent(nextPath ?? '/dashboard')
     const origin = encodeURIComponent(window.location.origin)
     window.location.assign(`/api/auth/google?mode=login&next=${next}&origin=${origin}`)
   }

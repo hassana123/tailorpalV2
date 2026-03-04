@@ -17,7 +17,7 @@ import {
   MessageSquareText,
 } from 'lucide-react'
 
-interface Shop {
+interface MarketplaceShop {
   id: string
   name: string
   description: string | null
@@ -25,12 +25,9 @@ interface Shop {
   state: string | null
   country: string | null
   logo_url: string | null
-  is_featured: boolean | null
-}
-
-interface ShopRating {
-  shop_id: string
-  rating: number
+  is_featured: boolean
+  rating: number | null
+  review_count: number
 }
 
 interface CatalogRow {
@@ -45,10 +42,20 @@ interface UserReview {
   created_at: string
 }
 
-interface DisplayShop extends Shop {
+interface DisplayShop extends Omit<MarketplaceShop, 'rating' | 'review_count'> {
   avgRating: number | null
   reviewCount: number
   catalogCount: number
+}
+
+interface MarketplaceShopsResponse {
+  shops?: MarketplaceShop[]
+  error?: string
+}
+
+interface CustomerReviewsResponse {
+  reviews?: UserReview[]
+  error?: string
 }
 
 export default function CustomerDashboardPage() {
@@ -75,7 +82,7 @@ export default function CustomerDashboardPage() {
       } = await supabase.auth.getUser()
 
       if (userError || !user) {
-        router.push('/auth/login')
+        router.replace('/auth/login')
         return
       }
 
@@ -83,55 +90,49 @@ export default function CustomerDashboardPage() {
         .from('profiles')
         .select('first_name, user_type')
         .eq('id', user.id)
-        .single()
+        .maybeSingle()
 
-      if (profileError) {
+      if (profileError && profileError.code !== 'PGRST116') {
         throw profileError
       }
 
+      if (!profile?.user_type) {
+        router.replace('/auth/choose-role')
+        return
+      }
+
       if (profile.user_type === 'shop_owner') {
-        router.push('/dashboard/shop')
+        router.replace('/dashboard/shop')
         return
       }
       if (profile.user_type === 'staff') {
-        router.push('/dashboard/staff')
+        router.replace('/dashboard/staff')
         return
       }
 
       setFirstName(profile.first_name ?? '')
 
-      const [shopsRes, ratingsRes, catalogRes, myReviewsRes] = await Promise.all([
-        supabase
-          .from('shops')
-          .select('id, name, description, city, state, country, logo_url, is_featured')
-          .order('created_at', { ascending: false }),
-        supabase.from('shop_ratings').select('shop_id, rating'),
+      const [marketplaceRes, catalogRes, reviewsRes] = await Promise.all([
+        fetch('/api/marketplace/shops', { cache: 'no-store' }),
         supabase.from('shop_catalog_items').select('shop_id').eq('is_active', true),
-        supabase
-          .from('shop_ratings')
-          .select('id, shop_id, rating, comment, created_at')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(8),
+        fetch('/api/customer/reviews', { cache: 'no-store' }),
       ])
 
-      if (shopsRes.error) throw shopsRes.error
-      if (ratingsRes.error) throw ratingsRes.error
       if (catalogRes.error) throw catalogRes.error
-      if (myReviewsRes.error) throw myReviewsRes.error
 
-      const rawShops = (shopsRes.data ?? []) as Shop[]
-      const ratings = (ratingsRes.data ?? []) as ShopRating[]
+      const shopsPayload = (await marketplaceRes
+        .json()
+        .catch(() => null)) as MarketplaceShopsResponse | null
+      if (!marketplaceRes.ok || !shopsPayload?.shops) {
+        throw new Error(shopsPayload?.error || 'Failed to load shops')
+      }
+
+      const reviewsPayload = (await reviewsRes
+        .json()
+        .catch(() => null)) as CustomerReviewsResponse | null
+      const rawShops = shopsPayload.shops
       const catalogRows = (catalogRes.data ?? []) as CatalogRow[]
-      const myReviews = (myReviewsRes.data ?? []) as UserReview[]
-
-      const ratingsByShop = ratings.reduce<Record<string, ShopRating[]>>((acc, row) => {
-        if (!acc[row.shop_id]) {
-          acc[row.shop_id] = []
-        }
-        acc[row.shop_id].push(row)
-        return acc
-      }, {})
+      const myReviews = reviewsPayload?.reviews ?? []
 
       const catalogCountByShop = catalogRows.reduce<Record<string, number>>((acc, row) => {
         acc[row.shop_id] = (acc[row.shop_id] ?? 0) + 1
@@ -139,20 +140,10 @@ export default function CustomerDashboardPage() {
       }, {})
 
       const computedShops: DisplayShop[] = rawShops.map((shop) => {
-        const shopRatings = ratingsByShop[shop.id] ?? []
-        const avgRating = shopRatings.length
-          ? Number(
-              (
-                shopRatings.reduce((sum, item) => sum + item.rating, 0) /
-                shopRatings.length
-              ).toFixed(1),
-            )
-          : null
-
         return {
           ...shop,
-          avgRating,
-          reviewCount: shopRatings.length,
+          avgRating: shop.rating,
+          reviewCount: shop.review_count,
           catalogCount: catalogCountByShop[shop.id] ?? 0,
         }
       })

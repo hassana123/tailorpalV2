@@ -8,6 +8,7 @@ import {
   Users,
   ShoppingCart,
   Package,
+  Boxes,
   UserCheck,
   TrendingUp,
   Mic2,
@@ -24,6 +25,7 @@ interface Shop {
   id: string
   name: string
   description: string | null
+  owner_id: string
 }
 
 interface DashboardStats {
@@ -31,6 +33,26 @@ interface DashboardStats {
   ordersCount:      number
   activeOrdersCount: number
   staffCount:       number
+}
+
+interface QuickAccess {
+  customers: boolean
+  orders: boolean
+  catalog: boolean
+  inventory: boolean
+  measurements: boolean
+  voiceAssistant: boolean
+  settings: boolean
+}
+
+const NO_ACCESS: QuickAccess = {
+  customers: false,
+  orders: false,
+  catalog: false,
+  inventory: false,
+  measurements: false,
+  voiceAssistant: false,
+  settings: false,
 }
 
 // ─── Stat Card (top row — matches reference "overview cards") ──────────────
@@ -148,16 +170,86 @@ export default function ShopDashboard() {
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError]   = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
+  const [quickAccess, setQuickAccess] = useState<QuickAccess>(NO_ACCESS)
 
   const load = async (silent = false) => {
     if (!silent) setIsLoading(true)
     else setRefreshing(true)
     try {
       const supabase = createClient()
+      const {
+        data: { user },
+        error: userError,
+      } = await supabase.auth.getUser()
+
+      if (userError || !user) throw new Error('Please sign in again')
+
       const { data: shopData, error: shopError } = await supabase
-        .from('shops').select('id, name, description').eq('id', shopId).single()
+        .from('shops').select('id, name, description, owner_id').eq('id', shopId).single()
       if (shopError || !shopData) throw new Error('Shop not found')
       setShop(shopData as Shop)
+
+      const isOwner = shopData.owner_id === user.id
+      if (isOwner) {
+        setQuickAccess({
+          customers: true,
+          orders: true,
+          catalog: true,
+          inventory: true,
+          measurements: true,
+          voiceAssistant: true,
+          settings: true,
+        })
+      } else {
+        const { data: memberships } = await supabase
+          .from('shop_staff')
+          .select('id')
+          .eq('shop_id', shopId)
+          .eq('user_id', user.id)
+          .eq('status', 'active')
+
+        const staffIds = (memberships ?? []).map((row) => row.id)
+        if (!staffIds.length) {
+          setQuickAccess(NO_ACCESS)
+        } else {
+          const { data: permissionRows } = await supabase
+            .from('shop_staff_permissions')
+            .select(
+              'can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
+            )
+            .in('staff_id', staffIds)
+
+          const merged = (permissionRows ?? []).reduce(
+            (acc, row) => ({
+              customers: acc.customers || Boolean(row.can_manage_customers),
+              orders: acc.orders || Boolean(row.can_manage_orders),
+              catalog: acc.catalog || Boolean(row.can_manage_catalog),
+              inventory: acc.inventory || Boolean(row.can_manage_inventory),
+              measurements: acc.measurements || Boolean(row.can_manage_measurements),
+            }),
+            {
+              customers: false,
+              orders: false,
+              catalog: false,
+              inventory: false,
+              measurements: false,
+            },
+          )
+
+          const hasOperationalAccess =
+            merged.customers ||
+            merged.orders ||
+            merged.catalog ||
+            merged.inventory ||
+            merged.measurements
+
+          setQuickAccess({
+            ...merged,
+            voiceAssistant: hasOperationalAccess,
+            settings: false,
+          })
+        }
+      }
 
       const [c, o, a, s] = await Promise.all([
         supabase.from('customers').select('*', { count: 'exact', head: true }).eq('shop_id', shopId),
@@ -167,6 +259,7 @@ export default function ShopDashboard() {
       ])
       setStats({ customersCount: c.count || 0, ordersCount: o.count || 0, activeOrdersCount: a.count || 0, staffCount: s.count || 0 })
     } catch (err) {
+      setQuickAccess(NO_ACCESS)
       setError(err instanceof Error ? err.message : 'Failed to load dashboard')
     } finally {
       setIsLoading(false)
@@ -241,12 +334,14 @@ export default function ShopDashboard() {
             <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
             <span className="hidden sm:inline">Refresh</span>
           </button>
-          <Link href={`/dashboard/shop/${shopId}/settings`}>
-            <button className="h-8 lg:h-9 px-3 lg:px-4 rounded-xl bg-brand-gold text-white text-xs lg:text-sm font-semibold hover:bg-[#c06d22] transition-all shadow-gold flex items-center gap-2">
-              <Settings size={12} />
-              <span className="hidden sm:inline">Settings</span>
-            </button>
-          </Link>
+          {quickAccess.settings && (
+            <Link href={`/dashboard/shop/${shopId}/settings`}>
+              <button className="h-8 lg:h-9 px-3 lg:px-4 rounded-xl bg-brand-gold text-white text-xs lg:text-sm font-semibold hover:bg-[#c06d22] transition-all shadow-gold flex items-center gap-2">
+                <Settings size={12} />
+                <span className="hidden sm:inline">Settings</span>
+              </button>
+            </Link>
+          )}
         </div>
       </div>
 
@@ -296,33 +391,44 @@ export default function ShopDashboard() {
       <div className="bg-white rounded-2xl border border-brand-border overflow-hidden">
         <div className="divide-y divide-brand-border">
           <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-brand-border">
-            <ServiceItem
-              Icon={Users}
-              label="Customer Service"
-              total={stats.customersCount}
-              rate={`${stats.customersCount}`}
-              rateLabel="Total Customers"
-              rateColor="text-sky-600"
-              href={`/dashboard/shop/${shopId}/customers`}
-            />
-            <ServiceItem
-              Icon={ShoppingCart}
-              label="Order Service"
-              total={stats.ordersCount}
-              rate={`${completionRate}%`}
-              rateLabel="Completion Rate"
-              rateColor={completionRate >= 80 ? 'text-emerald-600' : 'text-amber-600'}
-              href={`/dashboard/shop/${shopId}/orders`}
-            />
-            <ServiceItem
-              Icon={Mic2}
-              label="Voice Assistant"
-              total={0}
-              rate="Active"
-              rateLabel="Status"
-              rateColor="text-brand-gold"
-              href={`/dashboard/shop/${shopId}/voice-assistant`}
-            />
+            {quickAccess.customers && (
+              <ServiceItem
+                Icon={Users}
+                label="Customer Service"
+                total={stats.customersCount}
+                rate={`${stats.customersCount}`}
+                rateLabel="Total Customers"
+                rateColor="text-sky-600"
+                href={`/dashboard/shop/${shopId}/customers`}
+              />
+            )}
+            {quickAccess.orders && (
+              <ServiceItem
+                Icon={ShoppingCart}
+                label="Order Service"
+                total={stats.ordersCount}
+                rate={`${completionRate}%`}
+                rateLabel="Completion Rate"
+                rateColor={completionRate >= 80 ? 'text-emerald-600' : 'text-amber-600'}
+                href={`/dashboard/shop/${shopId}/orders`}
+              />
+            )}
+            {quickAccess.voiceAssistant && (
+              <ServiceItem
+                Icon={Mic2}
+                label="Voice Assistant"
+                total={0}
+                rate="Active"
+                rateLabel="Status"
+                rateColor="text-brand-gold"
+                href={`/dashboard/shop/${shopId}/voice-assistant`}
+              />
+            )}
+            {!quickAccess.customers && !quickAccess.orders && !quickAccess.voiceAssistant && (
+              <div className="px-5 py-4 text-xs text-brand-stone">
+                Service shortcuts are hidden until access is granted by the shop owner.
+              </div>
+            )}
           </div>
         </div>
       </div>
@@ -390,12 +496,30 @@ export default function ShopDashboard() {
             <h3 className="font-display text-lg lg:text-xl text-brand-ink">Quick Actions</h3>
           </div>
           <div className="">
-            <QuickAction Icon={Users}       label="Manage Customers"  href={`/dashboard/shop/${shopId}/customers`}       />
-            <QuickAction Icon={ShoppingCart} label="View Orders"       href={`/dashboard/shop/${shopId}/orders`}          />
-            <QuickAction Icon={Package}     label="Manage Catalog"    href={`/dashboard/shop/${shopId}/catalog`}         />
-            <QuickAction Icon={Ruler}       label="Measurements"      href={`/dashboard/shop/${shopId}/measurements`}    />
-            <QuickAction Icon={Mic2}        label="Voice Assistant"   href={`/dashboard/shop/${shopId}/voice-assistant`} />
-            <QuickAction Icon={Settings}    label="Shop Settings"     href={`/dashboard/shop/${shopId}/settings`}        variant="outline" />
+            {quickAccess.customers && (
+              <QuickAction Icon={Users} label="Manage Customers" href={`/dashboard/shop/${shopId}/customers`} />
+            )}
+            {quickAccess.orders && (
+              <QuickAction Icon={ShoppingCart} label="View Orders" href={`/dashboard/shop/${shopId}/orders`} />
+            )}
+            {quickAccess.catalog && (
+              <QuickAction Icon={Package} label="Manage Catalog" href={`/dashboard/shop/${shopId}/catalog`} />
+            )}
+            {quickAccess.inventory && (
+              <QuickAction Icon={Boxes} label="Manage Inventory" href={`/dashboard/shop/${shopId}/inventory`} />
+            )}
+            {quickAccess.measurements && (
+              <QuickAction Icon={Ruler} label="Measurements" href={`/dashboard/shop/${shopId}/measurements`} />
+            )}
+            {quickAccess.voiceAssistant && (
+              <QuickAction Icon={Mic2} label="Voice Assistant" href={`/dashboard/shop/${shopId}/voice-assistant`} />
+            )}
+            {quickAccess.settings && (
+              <QuickAction Icon={Settings} label="Shop Settings" href={`/dashboard/shop/${shopId}/settings`} variant="outline" />
+            )}
+            {!Object.values(quickAccess).some(Boolean) && (
+              <p className="text-xs text-brand-stone">No shortcuts available for your current access.</p>
+            )}
           </div>
         </div>
       </div>

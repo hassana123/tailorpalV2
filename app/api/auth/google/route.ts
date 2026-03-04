@@ -76,7 +76,7 @@ async function createGoogleAuthResponse(
 ): Promise<OAuthStartError | OAuthStartSuccess> {
   const appUrl = resolveAuthAppUrl(request, payload.origin)
   const callbackUrl = new URL('/auth/callback', appUrl)
-  const fallbackNext = payload.mode === 'signup' ? '/auth/choose-role' : '/dashboard/customer'
+  const fallbackNext = payload.mode === 'signup' ? '/auth/choose-role' : '/dashboard'
   const nextPath = getSafeNextPath(payload.next ?? fallbackNext, fallbackNext)
 
   const supabase = await createClient()

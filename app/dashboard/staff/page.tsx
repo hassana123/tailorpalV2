@@ -28,7 +28,7 @@ interface StaffShop {
 }
 
 interface ShopAssignment {
-  staffId: string
+  staffIds: string[]
   shop: StaffShop
   permissions: StaffPermissionSet
 }
@@ -38,6 +38,7 @@ interface DashboardStats {
   orders: number
   pendingMeasurements: number
   completedMeasurements: number
+  inventoryItems: number
 }
 
 const ACTIONS: Array<{
@@ -70,7 +71,23 @@ const ACTIONS: Array<{
     path: (shopId) => `/dashboard/shop/${shopId}/catalog`,
     permission: 'can_manage_catalog',
   },
+  {
+    label: 'Inventory',
+    description: 'Manage stock levels and supplies',
+    path: (shopId) => `/dashboard/shop/${shopId}/inventory`,
+    permission: 'can_manage_inventory',
+  },
 ]
+
+function mergePermissions(base: StaffPermissionSet, next: StaffPermissionSet): StaffPermissionSet {
+  return {
+    can_manage_customers: base.can_manage_customers || next.can_manage_customers,
+    can_manage_orders: base.can_manage_orders || next.can_manage_orders,
+    can_manage_measurements: base.can_manage_measurements || next.can_manage_measurements,
+    can_manage_catalog: base.can_manage_catalog || next.can_manage_catalog,
+    can_manage_inventory: base.can_manage_inventory || next.can_manage_inventory,
+  }
+}
 
 export default function StaffDashboardPage() {
   const router = useRouter()
@@ -84,6 +101,7 @@ export default function StaffDashboardPage() {
     orders: 0,
     pendingMeasurements: 0,
     completedMeasurements: 0,
+    inventoryItems: 0,
   })
 
   useEffect(() => {
@@ -102,6 +120,7 @@ export default function StaffDashboardPage() {
         orders: 0,
         pendingMeasurements: 0,
         completedMeasurements: 0,
+        inventoryItems: 0,
       }
 
       if (permissions.can_manage_customers) {
@@ -127,6 +146,15 @@ export default function StaffDashboardPage() {
           .eq('shop_id', shopId)
         next.pendingMeasurements = measurements?.filter((m) => m.status === 'pending').length || 0
         next.completedMeasurements = measurements?.filter((m) => m.status === 'completed').length || 0
+      }
+
+      if (permissions.can_manage_inventory) {
+        const { count } = await supabase
+          .from('shop_inventory_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('shop_id', shopId)
+          .eq('is_active', true)
+        next.inventoryItems = count || 0
       }
 
       setStats(next)
@@ -179,16 +207,28 @@ export default function StaffDashboardPage() {
         .filter((value): value is { staffId: string; shop: StaffShop } => Boolean(value))
 
       const staffIds = normalized.map((item) => item.staffId)
-      const { data: permissionRows, error: permissionError } = await supabase
-        .from('shop_staff_permissions')
-        .select(
-          'staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
-        )
-        .in('staff_id', staffIds)
+      let permissionRows: Array<{
+        staff_id: string
+        can_manage_customers: boolean | null
+        can_manage_orders: boolean | null
+        can_manage_measurements: boolean | null
+        can_manage_catalog: boolean | null
+        can_manage_inventory: boolean | null
+      }> = []
 
-      if (permissionError) throw permissionError
+      if (staffIds.length > 0) {
+        const { data, error: permissionError } = await supabase
+          .from('shop_staff_permissions')
+          .select(
+            'staff_id, can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
+          )
+          .in('staff_id', staffIds)
 
-      const permissionMap = (permissionRows ?? []).reduce<Record<string, StaffPermissionSet>>(
+        if (permissionError) throw permissionError
+        permissionRows = (data ?? []) as typeof permissionRows
+      }
+
+      const permissionMap = permissionRows.reduce<Record<string, StaffPermissionSet>>(
         (acc, row) => {
           acc[row.staff_id] = {
             can_manage_customers: Boolean(row.can_manage_customers),
@@ -202,11 +242,25 @@ export default function StaffDashboardPage() {
         {},
       )
 
-      const nextAssignments: ShopAssignment[] = normalized.map((item) => ({
-        staffId: item.staffId,
-        shop: item.shop,
-        permissions: permissionMap[item.staffId] ?? EMPTY_STAFF_PERMISSIONS,
-      }))
+      const assignmentsByShop = normalized.reduce<Record<string, ShopAssignment>>((acc, item) => {
+        const existing = acc[item.shop.id]
+        const nextPermissions = permissionMap[item.staffId] ?? EMPTY_STAFF_PERMISSIONS
+
+        if (existing) {
+          existing.staffIds.push(item.staffId)
+          existing.permissions = mergePermissions(existing.permissions, nextPermissions)
+          return acc
+        }
+
+        acc[item.shop.id] = {
+          staffIds: [item.staffId],
+          shop: item.shop,
+          permissions: { ...nextPermissions },
+        }
+        return acc
+      }, {})
+
+      const nextAssignments = Object.values(assignmentsByShop)
 
       setAssignments(nextAssignments)
       if (nextAssignments.length > 0) {
@@ -323,7 +377,7 @@ export default function StaffDashboardPage() {
           </CardContent>
         </Card>
 
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-5">
           <Card>
             <CardHeader className="pb-2">
               <CardTitle className="text-sm font-medium">Customers</CardTitle>
@@ -368,6 +422,18 @@ export default function StaffDashboardPage() {
               <div className="text-2xl font-bold">{stats.completedMeasurements}</div>
               <p className="text-xs text-muted-foreground">
                 {selectedPermissions.can_manage_measurements ? 'Accessible' : 'No access'}
+              </p>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-medium">Active Inventory</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="text-2xl font-bold">{stats.inventoryItems}</div>
+              <p className="text-xs text-muted-foreground">
+                {selectedPermissions.can_manage_inventory ? 'Accessible' : 'No access'}
               </p>
             </CardContent>
           </Card>

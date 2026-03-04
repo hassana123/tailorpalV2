@@ -59,12 +59,21 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Shop not found' }, { status: 404 })
     }
 
-    const { data: existingStaff } = await supabase
+    const { data: existingStaffRows, error: existingStaffError } = await supabase
       .from('shop_staff')
       .select('id, status')
       .eq('shop_id', payload.shopId)
       .eq('email', inviteEmail)
-      .maybeSingle()
+      .in('status', ['pending', 'active', 'revoked'])
+      .order('created_at', { ascending: false })
+      .limit(1)
+
+    if (existingStaffError) {
+      console.error('Error checking existing staff:', existingStaffError)
+      return NextResponse.json({ error: 'Failed to verify existing staff records' }, { status: 500 })
+    }
+
+    const existingStaff = existingStaffRows?.[0] ?? null
 
     if (existingStaff?.status === 'pending' || existingStaff?.status === 'active') {
       return NextResponse.json(
