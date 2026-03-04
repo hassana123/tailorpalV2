@@ -12,6 +12,7 @@ const payloadSchema = z.object({
   estimatedDeliveryDate: z.string().optional(),
   totalPrice: z.number().nonnegative().optional(),
   notes: z.string().optional(),
+  styleImageUrl: z.string().url().optional(),
 })
 
 export async function POST(request: NextRequest) {
@@ -59,6 +60,7 @@ export async function POST(request: NextRequest) {
           estimated_delivery_date: payload.estimatedDeliveryDate ?? null,
           total_price: payload.totalPrice ?? null,
           notes: payload.notes ?? null,
+          style_image_url: payload.styleImageUrl ?? null,
           created_by: user.id,
         },
       ])

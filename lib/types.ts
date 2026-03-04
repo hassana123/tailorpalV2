@@ -65,7 +65,7 @@ export interface AcceptStaffInvitationRequest {
 export interface CreateCustomerRequest {
   shopId: string
   firstName: string
-  lastName: string
+  lastName?: string
   email?: string
   phone?: string
   address?: string
@@ -82,6 +82,7 @@ export interface CreateOrderRequest {
   estimatedDeliveryDate?: string
   totalPrice?: number
   notes?: string
+  styleImageUrl?: string
 }
 
 export interface CreateMeasurementRequest {

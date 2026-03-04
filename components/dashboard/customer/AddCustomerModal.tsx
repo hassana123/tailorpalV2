@@ -28,7 +28,7 @@ export function AddCustomerModal({
       open={open}
       onOpenChange={onOpenChange}
       title="Add New Customer"
-      description="Enter customer details below. All fields marked with * are required."
+      description="Enter customer details below. First name is required."
       onSubmit={onSubmit}
       isSubmitting={isSubmitting}
       maxWidth="lg"
@@ -44,12 +44,12 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name *</Label>
+          <Label htmlFor="lastName">Last Name</Label>
           <Input
             id="lastName"
             value={formData.lastName}
             onChange={(e) => onFormDataChange({ ...formData, lastName: e.target.value })}
-            placeholder="Doe"
+            placeholder="Optional"
           />
         </div>
         <div className="space-y-2">
@@ -107,6 +107,23 @@ export function AddCustomerModal({
             placeholder="Any additional notes about this customer..."
             rows={3}
           />
+        </div>
+        <div className="space-y-2 sm:col-span-2">
+          <Label htmlFor="measurementTiming">Measurements</Label>
+          <select
+            id="measurementTiming"
+            className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold/55 transition-all appearance-none"
+            value={formData.addMeasurementsNow ? 'now' : 'later'}
+            onChange={(event) =>
+              onFormDataChange({
+                ...formData,
+                addMeasurementsNow: event.target.value === 'now',
+              })
+            }
+          >
+            <option value="later">Add measurements later</option>
+            <option value="now">Add measurements immediately after save</option>
+          </select>
         </div>
       </div>
     </ModalForm>

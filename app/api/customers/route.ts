@@ -7,8 +7,8 @@ import { z } from 'zod'
 
 const payloadSchema = z.object({
   shopId: z.string().uuid(),
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
+  firstName: z.string().trim().min(1),
+  lastName: z.string().trim().optional(),
   email: z.string().email().optional(),
   phone: z.string().optional(),
   address: z.string().optional(),
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
         {
           shop_id: payload.shopId,
           first_name: payload.firstName,
-          last_name: payload.lastName,
+          last_name: payload.lastName || null,
           email: payload.email ?? null,
           phone: payload.phone ?? null,
           address: payload.address ?? null,

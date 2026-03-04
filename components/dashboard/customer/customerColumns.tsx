@@ -18,6 +18,12 @@ export function useCustomerColumns({
   onAddMeasurements,
   onDelete,
 }: UseCustomerColumnsProps) {
+  const getInitials = (customer: Customer) =>
+    `${customer.first_name?.[0] ?? ''}${customer.last_name?.[0] ?? ''}`.toUpperCase()
+
+  const getDisplayName = (customer: Customer) =>
+    [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
+
   const columns = [
     {
       key: 'name',
@@ -26,12 +32,12 @@ export function useCustomerColumns({
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-brand-ink/10 flex items-center justify-center flex-shrink-0">
             <span className="text-sm font-bold text-brand-ink">
-              {customer.first_name[0]}{customer.last_name[0]}
+              {getInitials(customer)}
             </span>
           </div>
           <div className="min-w-0">
             <p className="font-semibold text-brand-ink truncate">
-              {customer.first_name} {customer.last_name}
+              {getDisplayName(customer)}
             </p>
             <p className="text-xs text-brand-stone">
               {new Date(customer.created_at).toLocaleDateString()}
@@ -40,7 +46,7 @@ export function useCustomerColumns({
         </div>
       ),
       sortable: true,
-      accessor: (c: Customer) => `${c.first_name} ${c.last_name}`,
+      accessor: (c: Customer) => getDisplayName(c),
     },
     {
       key: 'contact',

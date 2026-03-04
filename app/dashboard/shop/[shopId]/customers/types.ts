@@ -4,7 +4,7 @@ export interface Customer {
   id: string
   shop_id: string
   first_name: string
-  last_name: string
+  last_name: string | null
   email: string | null
   phone: string | null
   address: string | null
@@ -24,6 +24,7 @@ export interface CustomerFormData {
   city: string
   country: string
   notes: string
+  addMeasurementsNow: boolean
 }
 
 export const initialCustomerFormData: CustomerFormData = {
@@ -35,4 +36,5 @@ export const initialCustomerFormData: CustomerFormData = {
   city: '',
   country: '',
   notes: '',
+  addMeasurementsNow: false,
 }

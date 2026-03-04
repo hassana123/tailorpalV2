@@ -28,6 +28,7 @@ export default function CustomersPage() {
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [detailModalOpen, setDetailModalOpen] = useState(false)
   const [measurementsModalOpen, setMeasurementsModalOpen] = useState(false)
+  const [measurementsModalMode, setMeasurementsModalMode] = useState<'add' | 'edit'>('add')
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false)
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null)
 
@@ -60,8 +61,8 @@ export default function CustomersPage() {
   }
 
   const handleAddCustomer = async () => {
-    if (!newCustomer.firstName || !newCustomer.lastName) {
-      toast.error('First name and last name are required')
+    if (!newCustomer.firstName.trim()) {
+      toast.error('First name is required')
       return
     }
 
@@ -72,8 +73,8 @@ export default function CustomersPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopId,
-          firstName: newCustomer.firstName,
-          lastName: newCustomer.lastName,
+          firstName: newCustomer.firstName.trim(),
+          lastName: newCustomer.lastName.trim() || undefined,
           email: newCustomer.email || undefined,
           phone: newCustomer.phone || undefined,
           address: newCustomer.address || undefined,
@@ -83,15 +84,22 @@ export default function CustomersPage() {
         }),
       })
 
+      const payload = await response.json()
       if (!response.ok) {
-        const payload = await response.json()
         throw new Error(payload.error || 'Failed to add customer')
       }
 
       toast.success('Customer added successfully!')
+      const createdCustomer = payload.customer as Customer | undefined
+      const shouldOpenMeasurements = Boolean(createdCustomer && newCustomer.addMeasurementsNow)
       setNewCustomer(initialCustomerFormData)
       setAddModalOpen(false)
       await fetchCustomers()
+      if (shouldOpenMeasurements && createdCustomer) {
+        setSelectedCustomer(createdCustomer)
+        setMeasurementsModalMode('add')
+        setMeasurementsModalOpen(true)
+      }
     } catch (err) {
       console.error('Error adding customer:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to add customer')
@@ -101,8 +109,8 @@ export default function CustomersPage() {
   }
 
   const handleEditCustomer = async () => {
-    if (!selectedCustomer || !editForm.first_name || !editForm.last_name) {
-      toast.error('First name and last name are required')
+    if (!selectedCustomer || !editForm.first_name?.trim()) {
+      toast.error('First name is required')
       return
     }
 
@@ -111,8 +119,8 @@ export default function CustomersPage() {
       const { error } = await supabase
         .from('customers')
         .update({
-          first_name: editForm.first_name,
-          last_name: editForm.last_name,
+          first_name: editForm.first_name.trim(),
+          last_name: editForm.last_name?.trim() || null,
           email: editForm.email || null,
           phone: editForm.phone || null,
           address: editForm.address || null,
@@ -167,8 +175,9 @@ export default function CustomersPage() {
     setDetailModalOpen(true)
   }
 
-  const openMeasurementsModal = (customer: Customer) => {
+  const openMeasurementsModal = (customer: Customer, mode: 'add' | 'edit' = 'add') => {
     setSelectedCustomer(customer)
+    setMeasurementsModalMode(mode)
     setMeasurementsModalOpen(true)
   }
 
@@ -229,6 +238,11 @@ export default function CustomersPage() {
         onOpenChange={setEditModalOpen}
         formData={editForm}
         onFormDataChange={setEditForm}
+        onEditMeasurements={() => {
+          if (!selectedCustomer) return
+          setEditModalOpen(false)
+          openMeasurementsModal(selectedCustomer, 'edit')
+        }}
         onSubmit={handleEditCustomer}
         isSubmitting={isSubmitting}
       />
@@ -257,6 +271,7 @@ export default function CustomersPage() {
           onOpenChange={setMeasurementsModalOpen}
           customer={selectedCustomer}
           shopId={shopId}
+          mode={measurementsModalMode}
         />
       )}
 

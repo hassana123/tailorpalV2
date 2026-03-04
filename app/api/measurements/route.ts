@@ -15,6 +15,10 @@ const payloadSchema = z.object({
   notes: z.string().optional(),
 })
 
+const replacePayloadSchema = payloadSchema.extend({
+  measurementId: z.string().uuid().optional(),
+})
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -115,6 +119,121 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ measurement: data }, { status: existing ? 200 : 201 })
   } catch (error) {
     console.error('Error in measurements POST:', error)
+    return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
+  }
+}
+
+export async function PUT(request: NextRequest) {
+  try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    const parsed = replacePayloadSchema.safeParse((await request.json()) as CreateMeasurementRequest)
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid payload', details: parsed.error.flatten() },
+        { status: 400 },
+      )
+    }
+
+    const payload = parsed.data
+    const canAccess = await hasShopAccess(user.id, payload.shopId)
+    if (!canAccess) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const canManageMeasurements = await hasStaffPermission(
+      user.id,
+      payload.shopId,
+      'manage_measurements',
+    )
+    if (!canManageMeasurements) {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+    }
+
+    const standardMeasurements = sanitizeMeasurementMap(payload.standardMeasurements)
+    const customMeasurements = sanitizeMeasurementMap(payload.customMeasurements)
+    const hasValues =
+      Object.keys(standardMeasurements).length > 0 || Object.keys(customMeasurements).length > 0
+
+    const existingQuery = payload.measurementId
+      ? supabase
+          .from('measurements')
+          .select('*')
+          .eq('id', payload.measurementId)
+          .eq('shop_id', payload.shopId)
+          .eq('customer_id', payload.customerId)
+          .limit(1)
+      : supabase
+          .from('measurements')
+          .select('*')
+          .eq('shop_id', payload.shopId)
+          .eq('customer_id', payload.customerId)
+          .order('updated_at', { ascending: false })
+          .order('created_at', { ascending: false })
+          .limit(1)
+
+    const { data: existingRows, error: existingError } = await existingQuery
+
+    if (existingError) {
+      console.error('Error loading existing measurement:', existingError)
+      return NextResponse.json({ error: 'Failed to update measurement' }, { status: 500 })
+    }
+
+    const existing = existingRows?.[0]
+    if (!existing && !hasValues) {
+      return NextResponse.json({ error: 'Please provide at least one measurement value' }, { status: 400 })
+    }
+
+    const notes =
+      payload.notes !== undefined
+        ? payload.notes.trim() || null
+        : (existing?.notes ?? null)
+
+    const basePayload = {
+      standard_measurements: standardMeasurements,
+      custom_measurements: customMeasurements,
+      notes,
+      status: 'completed' as const,
+      updated_at: new Date().toISOString(),
+    }
+
+    const query = existing
+      ? supabase
+          .from('measurements')
+          .update(basePayload)
+          .eq('id', existing.id)
+          .select('*')
+          .single()
+      : supabase
+          .from('measurements')
+          .insert([
+            {
+              shop_id: payload.shopId,
+              customer_id: payload.customerId,
+              ...basePayload,
+              created_by: user.id,
+            },
+          ])
+          .select('*')
+          .single()
+
+    const { data, error } = await query
+    if (error) {
+      console.error('Error replacing measurement values:', error)
+      return NextResponse.json({ error: 'Failed to update measurement' }, { status: 500 })
+    }
+
+    return NextResponse.json({ measurement: data }, { status: existing ? 200 : 201 })
+  } catch (error) {
+    console.error('Error in measurements PUT:', error)
     return NextResponse.json({ error: 'Internal server error' }, { status: 500 })
   }
 }

@@ -1,4 +1,4 @@
-type UploadFolder = 'logos' | 'banners' | 'catalog'
+type UploadFolder = 'logos' | 'banners' | 'catalog' | 'orders'
 
 function sanitizeFileName(fileName: string) {
   return fileName

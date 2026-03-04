@@ -419,7 +419,7 @@ export default function ShopCatalogPage() {
       </div>
 
       {/* Items grid */}
-      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6">
+      <div className="bg-white rounded-2xl border border-brand-border p-4 ">
         <div className="mb-5">
           <h2 className="font-display text-lg text-brand-ink">All Items</h2>
           <p className="text-xs text-brand-stone mt-0.5">{catalogItems.length} catalog item{catalogItems.length !== 1 ? 's' : ''}</p>
@@ -441,7 +441,7 @@ export default function ShopCatalogPage() {
             </Button>
           </div>
         ) : (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
             {catalogItems.map((item) => (
               <CatalogItemCard
                 key={item.id}

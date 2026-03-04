@@ -3,14 +3,17 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
+import { Button } from '@/components/ui/button'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
 import { Customer } from '@/app/dashboard/shop/[shopId]/customers/types'
+import { Ruler } from 'lucide-react'
 
 interface EditCustomerModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   formData: Partial<Customer>
   onFormDataChange: (data: Partial<Customer>) => void
+  onEditMeasurements: () => void
   onSubmit: () => void
   isSubmitting: boolean
 }
@@ -20,6 +23,7 @@ export function EditCustomerModal({
   onOpenChange,
   formData,
   onFormDataChange,
+  onEditMeasurements,
   onSubmit,
   isSubmitting,
 }: EditCustomerModalProps) {
@@ -34,6 +38,12 @@ export function EditCustomerModal({
       maxWidth="lg"
     >
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        <div className="sm:col-span-2">
+          <Button type="button" variant="outline" className="w-full" onClick={onEditMeasurements}>
+            <Ruler className="h-4 w-4 mr-2" />
+            Edit Measurements
+          </Button>
+        </div>
         <div className="space-y-2">
           <Label htmlFor="editFirstName">First Name *</Label>
           <Input
@@ -43,7 +53,7 @@ export function EditCustomerModal({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="editLastName">Last Name *</Label>
+          <Label htmlFor="editLastName">Last Name</Label>
           <Input
             id="editLastName"
             value={formData.last_name || ''}

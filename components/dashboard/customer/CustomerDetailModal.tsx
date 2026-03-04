@@ -25,7 +25,7 @@ interface Customer {
   id: string
   shop_id: string
   first_name: string
-  last_name: string
+  last_name: string | null
   email: string | null
   phone: string | null
   address: string | null
@@ -94,15 +94,17 @@ export function CustomerDetailModal({
     }
   }
 
-  const getInitials = (firstName: string, lastName: string) => {
-    return `${firstName[0]}${lastName[0]}`.toUpperCase()
+  const displayName = [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
+
+  const getInitials = (firstName: string, lastName: string | null) => {
+    return `${firstName[0] ?? ''}${lastName?.[0] ?? ''}`.toUpperCase()
   }
 
   return (
     <ModalForm
       open={open}
       onOpenChange={onOpenChange}
-      title={`${customer.first_name} ${customer.last_name}`}
+      title={displayName}
       description="Customer details and measurement history"
       hideFooter
       maxWidth="lg"
@@ -118,7 +120,7 @@ export function CustomerDetailModal({
             </div>
             <div className="flex-1 min-w-0">
               <h3 className="text-lg font-semibold text-brand-ink">
-                {customer.first_name} {customer.last_name}
+                {displayName}
               </h3>
               <div className="mt-2 space-y-1 text-sm">
                 {customer.email && (

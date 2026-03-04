@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -8,6 +8,8 @@ import { Textarea } from '@/components/ui/textarea'
 import { Badge } from '@/components/ui/badge'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
 import { STANDARD_MEASUREMENTS } from '@/lib/constants/measurements'
+import { createClient } from '@/lib/supabase/client'
+import { extractMeasurementMaps } from '@/lib/utils/measurement-records'
 import { toast } from 'sonner'
 import {
   Plus,
@@ -20,7 +22,7 @@ import { cn } from '@/lib/utils'
 interface Customer {
   id: string
   first_name: string
-  last_name: string
+  last_name: string | null
 }
 
 interface CustomerMeasurementsModalProps {
@@ -28,6 +30,7 @@ interface CustomerMeasurementsModalProps {
   onOpenChange: (open: boolean) => void
   customer: Customer
   shopId: string
+  mode?: 'add' | 'edit'
 }
 
 const MEASUREMENT_CATEGORIES = Array.from(new Set(STANDARD_MEASUREMENTS.map((m) => m.category)))
@@ -37,7 +40,9 @@ export function CustomerMeasurementsModal({
   onOpenChange,
   customer,
   shopId,
+  mode = 'add',
 }: CustomerMeasurementsModalProps) {
+  const [supabase] = useState(() => createClient())
   const [selectedMeasurements, setSelectedMeasurements] = useState<Record<string, string>>({})
   const [customMeasurements, setCustomMeasurements] = useState<{ name: string; value: string }[]>([])
   const [newCustomName, setNewCustomName] = useState('')
@@ -45,6 +50,68 @@ export function CustomerMeasurementsModal({
   const [showPicker, setShowPicker] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [existingMeasurementId, setExistingMeasurementId] = useState<string | null>(null)
+  const [loadingExisting, setLoadingExisting] = useState(false)
+
+  useEffect(() => {
+    if (!open) return
+    void loadExistingMeasurements()
+  }, [open, customer.id, shopId])
+
+  const loadExistingMeasurements = async () => {
+    try {
+      setLoadingExisting(true)
+      const { data, error } = await supabase
+        .from('measurements')
+        .select('*')
+        .eq('shop_id', shopId)
+        .eq('customer_id', customer.id)
+        .order('updated_at', { ascending: false })
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (error) throw error
+
+      if (!data) {
+        setExistingMeasurementId(null)
+        setSelectedMeasurements({})
+        setCustomMeasurements([])
+        setMeasurementNotes('')
+        return
+      }
+
+      const maps = extractMeasurementMaps(data)
+      setExistingMeasurementId(data.id)
+      setSelectedMeasurements(
+        Object.fromEntries(
+          Object.entries(maps.standard).map(([key, value]) => [key, value.toString()]),
+        ),
+      )
+      setCustomMeasurements(
+        Object.entries(maps.custom).map(([name, value]) => ({
+          name,
+          value: value.toString(),
+        })),
+      )
+      setMeasurementNotes(typeof data.notes === 'string' ? data.notes : '')
+    } catch (err) {
+      console.error('Error loading existing measurements:', err)
+      toast.error('Failed to load measurements')
+    } finally {
+      setLoadingExisting(false)
+    }
+  }
+
+  const resetForm = () => {
+    setSelectedMeasurements({})
+    setCustomMeasurements([])
+    setNewCustomName('')
+    setMeasurementNotes('')
+    setShowPicker(false)
+    setExpandedCategories({})
+    setExistingMeasurementId(null)
+  }
 
   const toggleMeasurementField = (key: string) => {
     setSelectedMeasurements((prev) => {
@@ -82,7 +149,8 @@ export function CustomerMeasurementsModal({
       if (!isNaN(n) && n > 0) customObj[name] = n
     }
 
-    if (Object.keys(standardObj).length === 0 && Object.keys(customObj).length === 0) {
+    const hasValues = Object.keys(standardObj).length > 0 || Object.keys(customObj).length > 0
+    if (!hasValues && mode === 'add' && !existingMeasurementId) {
       toast.error('Please enter at least one measurement value')
       return
     }
@@ -90,7 +158,7 @@ export function CustomerMeasurementsModal({
     try {
       setIsSubmitting(true)
       const response = await fetch('/api/measurements', {
-        method: 'POST',
+        method: mode === 'edit' ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           shopId,
@@ -98,6 +166,7 @@ export function CustomerMeasurementsModal({
           standardMeasurements: standardObj,
           customMeasurements: customObj,
           notes: measurementNotes || undefined,
+          measurementId: existingMeasurementId || undefined,
         }),
       })
 
@@ -106,14 +175,9 @@ export function CustomerMeasurementsModal({
         throw new Error(payload.error || 'Failed to save measurements')
       }
 
-      toast.success('Measurements saved successfully!')
+      toast.success(mode === 'edit' ? 'Measurements updated successfully!' : 'Measurements saved successfully!')
       onOpenChange(false)
-      
-      // Reset form
-      setSelectedMeasurements({})
-      setCustomMeasurements([])
-      setMeasurementNotes('')
-      setShowPicker(false)
+      resetForm()
     } catch (err) {
       console.error('Error saving measurement:', err)
       toast.error(err instanceof Error ? err.message : 'Failed to save measurements')
@@ -126,14 +190,22 @@ export function CustomerMeasurementsModal({
     <ModalForm
       open={open}
       onOpenChange={onOpenChange}
-      title={`Add Measurements - ${customer.first_name} ${customer.last_name}`}
-      description="Select measurements from the standard list or add custom ones."
+      title={`${mode === 'edit' ? 'Edit' : 'Add'} Measurements - ${[customer.first_name, customer.last_name].filter(Boolean).join(' ')}`}
+      description={
+        mode === 'edit'
+          ? 'Update, add, or remove measurement values.'
+          : 'Select measurements from the standard list or add custom ones.'
+      }
       onSubmit={handleSave}
-      isSubmitting={isSubmitting}
-      submitLabel="Save Measurements"
+      isSubmitting={isSubmitting || loadingExisting}
+      submitLabel={mode === 'edit' ? 'Update Measurements' : 'Save Measurements'}
       maxWidth="2xl"
     >
       <div className="space-y-6">
+        {loadingExisting && (
+          <div className="text-sm text-brand-stone">Loading existing measurement values...</div>
+        )}
+
         {/* Standard Measurements Picker */}
         <div>
           <Button

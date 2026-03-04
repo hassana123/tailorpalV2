@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin'
+import { createClient } from '@/lib/supabase/server'
 import { CatalogOrderRequestPayload } from '@/lib/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -30,6 +31,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const supabase = await createClient()
+    const {
+      data: { user },
+    } = await supabase.auth.getUser()
+
     const admin = createAdminClient()
 
     const { data: item, error: itemError } = await admin
@@ -59,6 +65,7 @@ export async function POST(request: NextRequest) {
           requester_phone: parsed.data.requesterPhone ?? null,
           notes: parsed.data.notes ?? null,
           status: 'pending',
+          customer_user_id: user?.id ?? null,
         },
       ])
       .select('*')
