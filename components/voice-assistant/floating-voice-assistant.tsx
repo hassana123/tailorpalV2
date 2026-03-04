@@ -68,10 +68,26 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   // ✅ FIX OPTION 1: Drop the stale condition (simplest)
+// const { speak } = useVoiceSynthesis(true, () => {
+//   setTimeout(() => {
+//     setState('listening')
+//     setResponse('')
+//   }, 500)
+// })
+// ✅ FIX OPTION 2: Use a ref to always read current state
+const stateRef = useRef<AssistantState>('idle')
+
+// Keep ref in sync
+useEffect(() => {
+  stateRef.current = state
+}, [state])
+
 const { speak } = useVoiceSynthesis(true, () => {
   setTimeout(() => {
-    setState('listening')
-    setResponse('')
+    if (stateRef.current === 'responding') {
+      setState('listening')
+      setResponse('')
+    }
   }, 500)
 })
 
