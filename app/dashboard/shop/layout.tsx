@@ -350,8 +350,10 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
     (href !== `/dashboard/shop/${shopId}` && pathname.startsWith(`${href}/`))
 
 
+  const showFloatingAssistant = !pathname?.includes('/voice-assistant')
+
   return (
-    <FloatingAssistantProvider shopId={shopId || ''}>
+    <FloatingAssistantProvider shopId={shopId || ''} enabled={showFloatingAssistant}>
       <div className="flex h-screen overflow-hidden bg-brand-cream">
         {/* Desktop Sidebar - Hidden on mobile */}
         <div className="hidden lg:block">

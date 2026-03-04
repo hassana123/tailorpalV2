@@ -102,11 +102,14 @@ export function parseFullName(message: string) {
 }
 
 export function parsePhone(message: string) {
+  // Use original message to preserve phone number structure
+  // Don't preprocess as it might remove important characters
   const match = message.match(/(\+?\d[\d\s()-]{6,}\d)/)
   return match?.[1]?.trim() ?? null
 }
 
 export function parseEmail(message: string) {
+  // Use original message
   const match = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
   return match?.[0]?.toLowerCase() ?? null
 }

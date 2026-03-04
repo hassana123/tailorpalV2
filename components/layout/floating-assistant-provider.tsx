@@ -6,13 +6,14 @@ import { FloatingVoiceAssistant } from '../voice-assistant/floating-voice-assist
 interface FloatingAssistantProviderProps {
   children: ReactNode
   shopId: string
+  enabled?: boolean // Control whether the floating assistant is shown
 }
 
-export function FloatingAssistantProvider({ children, shopId }: FloatingAssistantProviderProps) {
+export function FloatingAssistantProvider({ children, shopId, enabled = true }: FloatingAssistantProviderProps) {
   return (
     <>
       {children}
-      <FloatingVoiceAssistant shopId={shopId} />
+      {enabled && shopId && <FloatingVoiceAssistant shopId={shopId} />}
     </>
   )
 }

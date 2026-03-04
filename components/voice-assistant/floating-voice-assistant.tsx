@@ -62,23 +62,31 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
     clearSilenceTimer,
   } = useVoiceRecognition({
     autoSend: true,
-    isSending: state === 'processing',
+    isSending: state === 'processing' || state === 'responding',
     onAutoSend: handleVoiceInput,
   })
 
-  const {  speak } = useVoiceSynthesis(true, () => {
-    // After speaking finishes, go back to listening
-    setState('listening')
-    setResponse('')
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const { speak } = useVoiceSynthesis(true, () => {
+    // After speaking finishes, wait a moment then go back to listening
+    setTimeout(() => {
+      if (state === 'responding') {
+        setState('listening')
+        setResponse('')
+      }
+    }, 500)
   })
 
   // Handle voice input received
   async function handleVoiceInput(text: string) {
     if (!text.trim()) return
     
+    // CRITICAL: Stop listening while processing to prevent AI response being recorded
+    stopListening()
+    clearSilenceTimer()
+    
     setState('processing')
     setTranscript(text)
-    clearSilenceTimer()
 
     try {
       const res = await fetch('/api/voice/process', {
