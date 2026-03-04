@@ -67,15 +67,13 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
   })
 
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const { speak } = useVoiceSynthesis(true, () => {
-    // After speaking finishes, wait a moment then go back to listening
-    setTimeout(() => {
-      if (state === 'responding') {
-        setState('listening')
-        setResponse('')
-      }
-    }, 500)
-  })
+  // ✅ FIX OPTION 1: Drop the stale condition (simplest)
+const { speak } = useVoiceSynthesis(true, () => {
+  setTimeout(() => {
+    setState('listening')
+    setResponse('')
+  }, 500)
+})
 
   // Handle voice input received
   async function handleVoiceInput(text: string) {
