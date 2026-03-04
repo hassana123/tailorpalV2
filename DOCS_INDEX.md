@@ -1,8 +1,8 @@
-# TailorPal Documentation Index
+﻿# TailorPal Documentation Index
 
 Welcome to TailorPal! This is your guide to all available documentation.
 
-## 📖 Start Here
+## ðŸ“– Start Here
 
 **New to the project?** Start with these in order:
 
@@ -10,12 +10,14 @@ Welcome to TailorPal! This is your guide to all available documentation.
 2. **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Setup and first steps (10 min read)
 3. **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Common tasks and code patterns (5 min read)
 
-## 📚 Documentation Files
+## ðŸ“š Documentation Files
 
 ### Quick References
 - **[QUICK_REFERENCE.md](./QUICK_REFERENCE.md)** - Cheat sheet with common patterns, URLs, and troubleshooting
 
 ### Comprehensive Guides
+- **[SHOP_OPERATIONS_GUIDE_NON_TECHNICAL.md](./SHOP_OPERATIONS_GUIDE_NON_TECHNICAL.md)** - Plain-language step-by-step shop operations guide for non-technical users
+- **[APPLICATION_FUNCTIONAL_DOCUMENTATION.md](./APPLICATION_FUNCTIONAL_DOCUMENTATION.md)** - Complete page-by-page and route-by-route functional documentation
 - **[GETTING_STARTED.md](./GETTING_STARTED.md)** - Complete getting started guide with examples
 - **[BUILD_SUMMARY.md](./BUILD_SUMMARY.md)** - Detailed summary of all features built
 - **[PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md)** - Full project completion summary
@@ -26,113 +28,113 @@ Welcome to TailorPal! This is your guide to all available documentation.
 ### Project Overview
 - **[README.md](./README.md)** - Main project documentation with features and tech stack
 
-## 🎯 Find By Task
+## ðŸŽ¯ Find By Task
 
 ### I want to...
 
 **...understand the project**
-→ Start with [README.md](./README.md)
+â†’ Start with [README.md](./README.md)
 
 **...get the app running locally**
-→ Read [GETTING_STARTED.md](./GETTING_STARTED.md) section "Quick Start"
+â†’ Read [GETTING_STARTED.md](./GETTING_STARTED.md) section "Quick Start"
 
 **...add a new page**
-→ Check [GETTING_STARTED.md](./GETTING_STARTED.md) section "Add a New Page"
+â†’ Check [GETTING_STARTED.md](./GETTING_STARTED.md) section "Add a New Page"
 
 **...add an API endpoint**
-→ Check [GETTING_STARTED.md](./GETTING_STARTED.md) section "Add an API Endpoint"
+â†’ Check [GETTING_STARTED.md](./GETTING_STARTED.md) section "Add an API Endpoint"
 
 **...access the database**
-→ See [GETTING_STARTED.md](./GETTING_STARTED.md) section "Accessing Data from Supabase"
+â†’ See [GETTING_STARTED.md](./GETTING_STARTED.md) section "Accessing Data from Supabase"
 
 **...use Tailwind CSS**
-→ See [GETTING_STARTED.md](./GETTING_STARTED.md) section "Styling"
+â†’ See [GETTING_STARTED.md](./GETTING_STARTED.md) section "Styling"
 
 **...understand the database schema**
-→ Read [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) section "Database Tables"
+â†’ Read [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) section "Database Tables"
 
 **...fix a common issue**
-→ Check [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) section "Troubleshooting"
+â†’ Check [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) section "Troubleshooting"
 
 **...deploy to production**
-→ Read [DEPLOYMENT.md](./DEPLOYMENT.md)
+â†’ Read [DEPLOYMENT.md](./DEPLOYMENT.md)
 
 **...see all built features**
-→ Check [BUILD_SUMMARY.md](./BUILD_SUMMARY.md)
+â†’ Check [BUILD_SUMMARY.md](./BUILD_SUMMARY.md)
 
 **...learn about the architecture**
-→ Read [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) section "Architecture"
+â†’ Read [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) section "Architecture"
 
-## 📍 Navigation Guide
+## ðŸ“ Navigation Guide
 
 ### By Role
 
 **Shop Owner**
-- Feature docs: [README.md](./README.md) → "For Shop Owners"
-- Using app: [GETTING_STARTED.md](./GETTING_STARTED.md) → "For Shop Owners"
+- Feature docs: [README.md](./README.md) â†’ "For Shop Owners"
+- Using app: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "For Shop Owners"
 
 **Staff Member**
-- Feature docs: [README.md](./README.md) → "For Staff"
-- Using app: [GETTING_STARTED.md](./GETTING_STARTED.md) → "For Staff Members"
+- Feature docs: [README.md](./README.md) â†’ "For Staff"
+- Using app: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "For Staff Members"
 
 **Customer/Marketplace User**
-- Feature docs: [README.md](./README.md) → "For Customers"
-- Using app: [GETTING_STARTED.md](./GETTING_STARTED.md) → "For Customers"
+- Feature docs: [README.md](./README.md) â†’ "For Customers"
+- Using app: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "For Customers"
 
 **Developer/Maintainer**
-- Architecture: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Architecture & Infrastructure"
-- Code patterns: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "Common Code Patterns"
-- File structure: [GETTING_STARTED.md](./GETTING_STARTED.md) → "File Structure Overview"
+- Architecture: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Architecture & Infrastructure"
+- Code patterns: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "Common Code Patterns"
+- File structure: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "File Structure Overview"
 
-## 🏗️ Technical Documentation
+## ðŸ—ï¸ Technical Documentation
 
 ### Architecture
-- Multi-tenancy: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Architecture & Infrastructure"
-- Database schema: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "Database Tables"
-- Security: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Security"
-- Scalability: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Scalability & Performance"
+- Multi-tenancy: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Architecture & Infrastructure"
+- Database schema: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "Database Tables"
+- Security: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Security"
+- Scalability: [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Scalability & Performance"
 
 ### Code Structure
-- Project layout: [GETTING_STARTED.md](./GETTING_STARTED.md) → "File Structure Overview"
-- Directory structure: [README.md](./README.md) → "Project Structure"
-- File naming: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "File Naming"
+- Project layout: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "File Structure Overview"
+- Directory structure: [README.md](./README.md) â†’ "Project Structure"
+- File naming: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "File Naming"
 
 ### Development
-- Getting started: [GETTING_STARTED.md](./GETTING_STARTED.md) → "Quick Start"
-- Common tasks: [GETTING_STARTED.md](./GETTING_STARTED.md) → "Common Tasks"
-- Code patterns: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "Common Code Patterns"
-- Debugging: [GETTING_STARTED.md](./GETTING_STARTED.md) → "Debugging"
+- Getting started: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Quick Start"
+- Common tasks: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Common Tasks"
+- Code patterns: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "Common Code Patterns"
+- Debugging: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Debugging"
 
 ### Database
-- Schema: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "Database Tables"
-- Access patterns: [GETTING_STARTED.md](./GETTING_STARTED.md) → "Accessing Data from Supabase"
-- Common queries: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "Common Queries"
+- Schema: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "Database Tables"
+- Access patterns: [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Accessing Data from Supabase"
+- Common queries: [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "Common Queries"
 
-## 🚀 Deployment & DevOps
+## ðŸš€ Deployment & DevOps
 
 ### Deployment Options
-- Vercel: [DEPLOYMENT.md](./DEPLOYMENT.md) → "Deployment to Vercel"
-- Self-hosted: [DEPLOYMENT.md](./DEPLOYMENT.md) → "Self-Hosted Deployment"
-- Docker: [DEPLOYMENT.md](./DEPLOYMENT.md) → "Docker Deployment"
+- Vercel: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Deployment to Vercel"
+- Self-hosted: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Self-Hosted Deployment"
+- Docker: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Docker Deployment"
 
 ### Production Setup
-- SSL/TLS: [DEPLOYMENT.md](./DEPLOYMENT.md) → "SSL/TLS Setup"
-- Monitoring: [DEPLOYMENT.md](./DEPLOYMENT.md) → "Monitoring & Logging"
-- Scaling: [DEPLOYMENT.md](./DEPLOYMENT.md) → "Scaling"
-- Backups: [DEPLOYMENT.md](./DEPLOYMENT.md) → "Maintenance"
+- SSL/TLS: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "SSL/TLS Setup"
+- Monitoring: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Monitoring & Logging"
+- Scaling: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Scaling"
+- Backups: [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Maintenance"
 
-## 📋 Checklists
+## ðŸ“‹ Checklists
 
 ### Pre-Development
-- See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "Pre-Deployment Checklist"
+- See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "Pre-Deployment Checklist"
 
 ### Before First Deploy
-- See [DEPLOYMENT.md](./DEPLOYMENT.md) → "Pre-Deployment Checklist"
+- See [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "Pre-Deployment Checklist"
 
 ### Testing User Flows
-- See [GETTING_STARTED.md](./GETTING_STARTED.md) → "First Test"
+- See [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "First Test"
 
-## 🔍 By Documentation Type
+## ðŸ” By Documentation Type
 
 ### Conceptual (Why & How)
 - [README.md](./README.md) - Overview and rationale
@@ -146,7 +148,7 @@ Welcome to TailorPal! This is your guide to all available documentation.
 - [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) - Cheat sheets and quick answers
 - [BUILD_SUMMARY.md](./BUILD_SUMMARY.md) - Feature inventory
 
-## 🆘 Troubleshooting
+## ðŸ†˜ Troubleshooting
 
 **Can't find something?**
 - Try [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) Troubleshooting section
@@ -162,7 +164,7 @@ Welcome to TailorPal! This is your guide to all available documentation.
 - Database errors
 - Deployment problems
 
-## 📱 By Device
+## ðŸ“± By Device
 
 ### Desktop Development
 - All docs apply
@@ -170,27 +172,27 @@ Welcome to TailorPal! This is your guide to all available documentation.
 
 ### Mobile Testing
 - Web app is responsive
-- See [GETTING_STARTED.md](./GETTING_STARTED.md) → "Testing"
+- See [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Testing"
 
-## 🔐 Security & Compliance
+## ðŸ” Security & Compliance
 
 ### Security Features
-- See [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Security"
-- See [DEPLOYMENT.md](./DEPLOYMENT.md) → "SSL/TLS Setup"
+- See [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Security"
+- See [DEPLOYMENT.md](./DEPLOYMENT.md) â†’ "SSL/TLS Setup"
 
 ### Data Protection
-- See [README.md](./README.md) → "Multi-Tenancy Architecture"
-- See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) → "RLS Policies"
+- See [README.md](./README.md) â†’ "Multi-Tenancy Architecture"
+- See [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) â†’ "RLS Policies"
 
-## 📊 Statistics & Metrics
+## ðŸ“Š Statistics & Metrics
 
 ### Project Stats
-- See [BUILD_SUMMARY.md](./BUILD_SUMMARY.md) → "Stats"
+- See [BUILD_SUMMARY.md](./BUILD_SUMMARY.md) â†’ "Stats"
 
 ### Performance Metrics
-- See [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Performance Metrics"
+- See [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Performance Metrics"
 
-## 🎓 Learning Path
+## ðŸŽ“ Learning Path
 
 ### Beginner Path (2 hours)
 1. Read [README.md](./README.md) (15 min)
@@ -213,7 +215,7 @@ Welcome to TailorPal! This is your guide to all available documentation.
 6. Read [DEPLOYMENT.md](./DEPLOYMENT.md) (1 hour)
 7. Deploy to production
 
-## 🔗 External Resources
+## ðŸ”— External Resources
 
 ### Official Documentation
 - [Next.js](https://nextjs.org/docs)
@@ -223,10 +225,10 @@ Welcome to TailorPal! This is your guide to all available documentation.
 - [shadcn/ui](https://ui.shadcn.com)
 
 ### Helpful Links in Docs
-- [GETTING_STARTED.md](./GETTING_STARTED.md) → "Learning Resources"
-- [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Support & Resources"
+- [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Learning Resources"
+- [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Support & Resources"
 
-## 📞 Support
+## ðŸ“ž Support
 
 ### First Steps
 1. Check [QUICK_REFERENCE.md](./QUICK_REFERENCE.md) Troubleshooting
@@ -235,10 +237,10 @@ Welcome to TailorPal! This is your guide to all available documentation.
 4. Review Supabase dashboard
 
 ### Getting Help
-- See [GETTING_STARTED.md](./GETTING_STARTED.md) → "Getting Help"
-- See [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) → "Support & Resources"
+- See [GETTING_STARTED.md](./GETTING_STARTED.md) â†’ "Getting Help"
+- See [PROJECT_COMPLETE.md](./PROJECT_COMPLETE.md) â†’ "Support & Resources"
 
-## ✅ Verification
+## âœ… Verification
 
 ### You're Ready When
 - [ ] You've read [README.md](./README.md)
@@ -250,22 +252,22 @@ Welcome to TailorPal! This is your guide to all available documentation.
 - [ ] You understand the role system
 
 ### Next Steps
-→ Go to [GETTING_STARTED.md](./GETTING_STARTED.md) and follow "Getting Started"
+â†’ Go to [GETTING_STARTED.md](./GETTING_STARTED.md) and follow "Getting Started"
 
-## 📝 Documentation Maintenance
+## ðŸ“ Documentation Maintenance
 
 These docs are:
-- ✅ Complete and current
-- ✅ Cross-referenced
-- ✅ Organized by use case
-- ✅ Regularly updated
-- ✅ Examples included
+- âœ… Complete and current
+- âœ… Cross-referenced
+- âœ… Organized by use case
+- âœ… Regularly updated
+- âœ… Examples included
 
 **Found an issue?** Update the docs to help future developers!
 
 ---
 
-## 🎯 Quick Links
+## ðŸŽ¯ Quick Links
 
 | Need | Link |
 |------|------|
@@ -280,4 +282,6 @@ These docs are:
 
 **Ready to get started?** Go to [GETTING_STARTED.md](./GETTING_STARTED.md) now!
 
-🚀 Happy coding!
+ðŸš€ Happy coding!
+
+
