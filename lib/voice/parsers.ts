@@ -22,16 +22,68 @@ const MEASUREMENT_ALIASES: Record<string, string> = {
   height: 'height',
 }
 
+/**
+ * Preprocesses voice input to clean up common transcription issues
+ * This makes the assistant more robust against speech recognition errors
+ */
+export function preprocessVoiceInput(message: string): string {
+  // Normalize to lowercase for processing
+  let cleaned = message.toLowerCase().trim()
+  
+  // Remove repeated words (e.g., "skip skip" -> "skip", "yes yes yes" -> "yes")
+  // This handles cases where speech recognition repeats words
+  cleaned = cleaned.replace(/\b(\w+)(?:\s+\1)+\b/gi, '$1')
+  
+  // Remove common filler words that confuse parsing
+  const fillers = ['um', 'uh', 'er', 'ah', 'like', 'you know', 'i mean']
+  for (const filler of fillers) {
+    cleaned = cleaned.replace(new RegExp(`\\b${filler}\\b`, 'gi'), '')
+  }
+  
+  // Clean up multiple spaces
+  cleaned = cleaned.replace(/\s+/g, ' ').trim()
+  
+  return cleaned
+}
+
+/**
+ * Check if message is a yes response - expanded to handle more variations
+ */
 export function isYes(message: string) {
-  return /\b(yes|yeah|yep|correct|confirm|proceed|go ahead|do it)\b/i.test(message)
+  const cleaned = preprocessVoiceInput(message)
+  // Also check original for backwards compatibility
+  return /\b(yes|yeah|yep|correct|confirm|proceed|go ahead|do it|that is correct|that is right|sure|ok|okay)\b/i.test(cleaned)
 }
 
+/**
+ * Check if message is a no response - expanded to handle more variations
+ */
 export function isNo(message: string) {
-  return /\b(no|nope|cancel|don'?t|stop)\b/i.test(message)
+  const cleaned = preprocessVoiceInput(message)
+  return /\b(no|nope|cancel|don'?t|stop|not|negative|nah)\b/i.test(cleaned)
 }
 
+/**
+ * Check if message is a skip request - fixed to handle "skip skip" and repetitions
+ * This is the key fix for the issue where "skip skip" was recorded as "skip skip" instead of being recognized as skip
+ */
 export function isSkip(message: string) {
-  return /^\s*(skip|none|no|not now|n\/a)\s*$/i.test(message)
+  const cleaned = preprocessVoiceInput(message)
+  // Also accept original message for backwards compatibility
+  const original = message.toLowerCase().trim()
+  
+  // Check both cleaned and original - handle single "skip", "skip skip", "skip skip skip"
+  // Also handle "skip it", "skip this", "skip for now" etc.
+  return /^\s*(skip|none|no|not now|n\/a|na|next|pass|leave it|skip it|skip this)\s*$/i.test(cleaned) ||
+         /^\s*(skip|none|no|not now|n\/a|na|next|pass|leave it|skip it|skip this)\s*$/i.test(original)
+}
+
+/**
+ * Check if user wants to cancel the current flow
+ */
+export function isCancel(message: string) {
+  const cleaned = preprocessVoiceInput(message)
+  return /\b(cancel|stop|start over|reset|never mind|abort|discard|forget it)\b/i.test(cleaned)
 }
 
 export function parseFullName(message: string) {

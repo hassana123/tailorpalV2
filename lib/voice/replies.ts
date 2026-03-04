@@ -2,17 +2,22 @@ import { formatMeasurementLabel } from '@/lib/utils/measurement-records'
 import { AddCustomerDraft, AddMeasurementDraft, CreateOrderDraft, UpdateOrderDraft } from '@/lib/voice/types'
 
 export const VOICE_HELP_TEXT = `I can help with:
-- "add customer" (guided step-by-step)
+- "add customer" or "create customer"
 - "add measurement" or "record measurements"
-- "create order"
+- "create order" or "new order"
 - "update order status"
 - "delete customer"
-- "list customers"
-- "find customer Jane"
-- "list orders"
+- "list customers" or "show customers"
+- "find customer [name]"
+- "list orders" or "show orders"
 - "pending orders"
-- "shop stats"
-- "cancel" to stop current action`
+- "shop stats" or "shop summary"
+- "cancel" to stop current action
+
+During any step:
+- Say "skip" (or "skip skip", "skip it", "pass", "none") to skip optional fields
+- Say "yes", "confirm", or "ok" to save
+- Say "no", "cancel", or "stop" to cancel`
 
 export function summarizeCustomerDraft(draft: AddCustomerDraft) {
   return [

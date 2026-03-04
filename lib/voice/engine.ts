@@ -15,6 +15,7 @@ import {
   startUpdateOrderStatusFlow,
 } from '@/lib/voice/flows/update-order-status-flow'
 import { detectIntent, getFlowPermission, intentToFlow, isCancelCommand } from '@/lib/voice/intents'
+import { preprocessVoiceInput } from '@/lib/voice/parsers'
 import { clearVoiceSession, getVoiceSession } from '@/lib/voice/session-store'
 import { VoicePermission, VoiceReply } from '@/lib/voice/types'
 
@@ -54,9 +55,13 @@ export function getRequiredPermissionForRequest(sessionKey: string, message: str
 }
 
 export async function handleVoiceRequest(context: VoiceFlowContext): Promise<VoiceReply | null> {
-  const message = context.message.trim()
+  // Preprocess voice input to handle transcription issues
+  const processedMessage = preprocessVoiceInput(context.message)
+  const message = processedMessage || context.message.trim()
+  
   if (!message) return { reply: 'Please say something.' }
 
+  // Use processed message for all checks
   if (isCancelCommand(message)) {
     clearVoiceSession(context.sessionKey)
     return { reply: 'Current action cancelled.' }

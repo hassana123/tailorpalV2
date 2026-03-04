@@ -1,4 +1,4 @@
-import { generateGroqReply } from '@/lib/ai/groq'
+import { generateGroqReply, TAILORPAL_VOICE_SYSTEM_PROMPT } from '@/lib/ai/groq'
 import { handleVoiceRequest, hasPermissionIssue, getRequiredPermissionForRequest } from '@/lib/voice/engine'
 import { getSessionKey } from '@/lib/voice/session-store'
 import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
@@ -69,13 +69,16 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(voiceResult)
     }
 
-    const fallback = await generateGroqReply(
-      `You are TailorPal, a concise voice assistant for tailoring shops.
+    // Use the enhanced system prompt for fallback
+    const enhancedPrompt = `${TAILORPAL_VOICE_SYSTEM_PROMPT}
+
+Current user request: ${message}
+
 Keep replies under 3 short sentences.
 If the user is asking for a shop action, suggest one of these starters:
-"add customer", "add measurement", "create order", "update order status", "list customers".`,
-      message,
-    )
+"add customer", "add measurement", "create order", "update order status", "list customers".`
+
+    const fallback = await generateGroqReply(enhancedPrompt, message)
 
     return NextResponse.json({
       reply: fallback ?? 'I did not catch that clearly. Say "help" to hear supported commands.',

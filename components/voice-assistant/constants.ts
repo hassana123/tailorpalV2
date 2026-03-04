@@ -2,21 +2,22 @@ export const SILENCE_TIMEOUT_MS = 2500  // Changed from 1500 to 2500 (2.5 second
 export const MAX_MESSAGES = 50
 
 export const HELP_TEXT = `Say simple starters and I will guide you:
-- "add customer"
-- "add measurement"
-- "create order"
+- "add customer" or "create customer"
+- "add measurement" or "record measurements"
+- "create order" or "new order"
 - "update order status"
 - "delete customer"
-- "list customers"
+- "list customers" or "show customers"
 - "find customer Jane"
-- "list orders"
+- "list orders" or "show orders"
 - "pending orders"
-- "shop stats"
+- "shop stats" or "shop summary"
 
 During guided steps:
-- say "skip" for optional fields
-- say "yes" to confirm save
-- say "no" or "cancel" to stop
+- say "skip" (or "skip skip", "skip it", "pass", "none") to skip optional fields
+- say "yes", "confirm", or "ok" to confirm save
+- say "no", "cancel", or "stop" to cancel
+- say "help" anytime for this list
 
 Controls:
 - Auto: sends after 2.5 seconds of silence
