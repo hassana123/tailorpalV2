@@ -6,6 +6,7 @@ import { AccountProfileDialog } from '@/components/dashboard/layout/AccountProfi
 import { DashboardHeader }      from '@/components/dashboard/layout/DashboardHeader'
 import { DashboardSidebar }     from '@/components/dashboard/layout/DashboardSidebar'
 import { MobileBottomNav } from '@/components/dashboard/layout/MobileBottomNav'
+import { FloatingVoiceAssistant } from '@/components/dashboard/layout/FloatingVoiceAssistant'
 import type { DashboardNavItem } from '@/components/dashboard/layout/types'
 import {
   LayoutDashboard,
@@ -349,6 +350,9 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
     pathname === href ||
     (href !== `/dashboard/shop/${shopId}` && pathname.startsWith(`${href}/`))
 
+  const hideFloatingAssistant =
+    !shopId || pathname.startsWith(`/dashboard/shop/${shopId}/voice-assistant`)
+
   return (
     <>
       <div className="flex h-screen overflow-hidden bg-brand-cream">
@@ -440,6 +444,13 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         isItemActive={isItemActive}
         onMoreClick={() => setMobileMenuOpen(true)}
       />
+
+      {shopId && (
+        <FloatingVoiceAssistant
+          shopId={shopId}
+          hidden={hideFloatingAssistant}
+        />
+      )}
 
       <AccountProfileDialog
         open={profileDialogOpen}
