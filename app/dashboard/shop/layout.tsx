@@ -1,12 +1,11 @@
 'use client'
-
+import { FloatingAssistantProvider } from '@/components/layout/floating-assistant-provider'
 import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AccountProfileDialog } from '@/components/dashboard/layout/AccountProfileDialog'
 import { DashboardHeader }      from '@/components/dashboard/layout/DashboardHeader'
 import { DashboardSidebar }     from '@/components/dashboard/layout/DashboardSidebar'
 import { MobileBottomNav } from '@/components/dashboard/layout/MobileBottomNav'
-import { FloatingVoiceAssistant } from '@/components/dashboard/layout/FloatingVoiceAssistant'
 import type { DashboardNavItem } from '@/components/dashboard/layout/types'
 import {
   LayoutDashboard,
@@ -350,11 +349,9 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
     pathname === href ||
     (href !== `/dashboard/shop/${shopId}` && pathname.startsWith(`${href}/`))
 
-  const hideFloatingAssistant =
-    !shopId || pathname.startsWith(`/dashboard/shop/${shopId}/voice-assistant`)
 
   return (
-    <>
+    <FloatingAssistantProvider shopId={shopId || ''}>
       <div className="flex h-screen overflow-hidden bg-brand-cream">
         {/* Desktop Sidebar - Hidden on mobile */}
         <div className="hidden lg:block">
@@ -445,13 +442,6 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         onMoreClick={() => setMobileMenuOpen(true)}
       />
 
-      {shopId && (
-        <FloatingVoiceAssistant
-          shopId={shopId}
-          hidden={hideFloatingAssistant}
-        />
-      )}
-
       <AccountProfileDialog
         open={profileDialogOpen}
         onOpenChange={setProfileDialogOpen}
@@ -465,6 +455,6 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         onLastNameChange={setLastName}
         onSave={handleSaveProfile}
       />
-    </>
+    </FloatingAssistantProvider>
   )
 }

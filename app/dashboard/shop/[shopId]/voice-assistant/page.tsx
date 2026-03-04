@@ -1,7 +1,7 @@
 'use client'
 
 import { useParams } from 'next/navigation'
-import { VoiceAssistant } from '@/components/voice-assistant'
+import { VoiceAssistant } from '@/components/voice-assistant/voice-assistant'
 import { Mic, Tag, Users, BarChart2, ShoppingBag, Hash, List, Search } from 'lucide-react'
 
 // ─── Command card ─────────────────────────────────────────────────────────────
