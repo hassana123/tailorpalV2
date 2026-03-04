@@ -44,16 +44,16 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="lastName">Last Name</Label>
+          <Label htmlFor="lastName">Last Name <small className='text-[10px]'>(Optional)</small></Label>
           <Input
             id="lastName"
             value={formData.lastName}
             onChange={(e) => onFormDataChange({ ...formData, lastName: e.target.value })}
-            placeholder="Optional"
+            placeholder="Doe"
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="email">Email</Label>
+          <Label htmlFor="email">Email <small className='text-[10px]'>(Optional)</small></Label>
           <Input
             id="email"
             type="email"
@@ -63,7 +63,7 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="phone">Phone</Label>
+          <Label htmlFor="phone">Phone <small className='text-[10px]'>(Optional)</small></Label>
           <Input
             id="phone"
             value={formData.phone}
@@ -72,7 +72,7 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="address">Address</Label>
+          <Label htmlFor="address">Address <small className='text-[10px]'>(Optional)</small></Label>
           <Input
             id="address"
             value={formData.address}
@@ -81,7 +81,7 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="city">City</Label>
+          <Label htmlFor="city">City <small className='text-[10px]'>(Optional)</small></Label>
           <Input
             id="city"
             value={formData.city}
@@ -90,7 +90,7 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="country">Country</Label>
+          <Label htmlFor="country">Country <small className='text-[10px]'>(Optional)</small></Label>
           <Input
             id="country"
             value={formData.country}
@@ -99,7 +99,7 @@ export function AddCustomerModal({
           />
         </div>
         <div className="space-y-2 sm:col-span-2">
-          <Label htmlFor="notes">Notes</Label>
+          <Label htmlFor="notes">Notes <small className='text-[10px]'>(Optional)</small></Label>
           <Textarea
             id="notes"
             value={formData.notes}

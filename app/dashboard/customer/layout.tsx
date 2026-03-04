@@ -10,7 +10,7 @@ import { DashboardHeader } from '@/components/dashboard/layout/DashboardHeader'
 import { DashboardSidebar } from '@/components/dashboard/layout/DashboardSidebar'
 import { MobileBottomNav } from '@/components/dashboard/layout/MobileBottomNav'
 import type { DashboardNavItem } from '@/components/dashboard/layout/types'
-import { Compass, LayoutDashboard, X } from 'lucide-react'
+import { Compass, LayoutDashboard, Package, X } from 'lucide-react'
 
 export default function CustomerLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
@@ -30,6 +30,7 @@ export default function CustomerLayout({ children }: { children: ReactNode }) {
 
   const navItems: DashboardNavItem[] = [
     { href: '/dashboard/customer', label: 'Dashboard', icon: LayoutDashboard },
+    { href: '/dashboard/customer/my-requests', label: 'My Requests', icon: Package },
     { href: '/dashboard/customer/marketplace', label: 'Marketplace', icon: Compass },
   ]
 

@@ -10,7 +10,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { toast } from 'sonner'
 import { DataTable } from '@/components/dashboard/shared/DataTable'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
-import { TableAction } from '@/components/dashboard/shared/table-actions'
+import { TableAction, TableActionVariant } from '@/components/dashboard/shared/table-actions'
 import {
   Plus,
   ShoppingCart,
@@ -24,6 +24,7 @@ import {
   Mail,
   Phone,
   Tag,
+  Check,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
@@ -131,6 +132,19 @@ export default function OrdersPage() {
   const [newOrder, setNewOrder] = useState({
     customerId: '', designDescription: '', estimatedDeliveryDate: '', totalPrice: '', notes: '',
   })
+
+  // Action modals for catalog requests
+  const [actionModalOpen, setActionModalOpen] = useState(false)
+  const [actionType, setActionType] = useState<'accept' | 'reject' | 'contact' | null>(null)
+  const [actionRequest, setActionRequest] = useState<CatalogOrderRequest | null>(null)
+  const [actionChannel, setActionChannel] = useState<'email' | 'whatsapp' | 'none'>('none')
+  const [actionMessage, setActionMessage] = useState('')
+  const [estimatedDeliveryDate, setEstimatedDeliveryDate] = useState('')
+  const [totalPrice, setTotalPrice] = useState('')
+
+  // Quick status update for orders
+  const [statusModalOpen, setStatusModalOpen] = useState(false)
+  const [statusOrder, setStatusOrder] = useState<Order | null>(null)
 
   useEffect(() => { fetchData() }, [shopId])
 
@@ -273,6 +287,93 @@ export default function OrdersPage() {
     }
   }
 
+  // Open action modal for catalog request
+  const openActionModal = (request: CatalogOrderRequest, action: 'accept' | 'reject' | 'contact') => {
+    setActionRequest(request)
+    setActionType(action)
+    setActionChannel('none')
+    setActionMessage('')
+    const item = Array.isArray(request.shop_catalog_items)
+      ? request.shop_catalog_items[0] ?? null
+      : request.shop_catalog_items
+    setTotalPrice(item?.price?.toString() ?? '')
+    setActionModalOpen(true)
+  }
+
+  // Handle action on catalog request (accept, reject, contact)
+  const handleCatalogAction = async () => {
+    if (!actionRequest || !actionType) return
+
+    try {
+      setIsSubmitting(true)
+      const response = await fetch(`/api/catalog/order-request/${actionRequest.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          action: actionType,
+          channel: actionChannel,
+          message: actionMessage || undefined,
+          estimatedDeliveryDate: actionType === 'accept' && estimatedDeliveryDate ? estimatedDeliveryDate : undefined,
+          totalPrice: actionType === 'accept' && totalPrice ? parseFloat(totalPrice) : undefined,
+        }),
+      })
+
+      const payload = await response.json()
+
+      if (!response.ok) {
+        throw new Error(payload.error || 'Failed to process request')
+      }
+
+      // If there's a communication link, open it
+      if (payload.communicationLink) {
+        window.open(payload.communicationLink, '_blank')
+      }
+
+      toast.success(
+        actionType === 'accept' ? 'Request accepted and order created!' :
+        actionType === 'reject' ? 'Request rejected' : 'Request marked as contacted'
+      )
+      setActionModalOpen(false)
+      await fetchData()
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to process request')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
+  // Quick status update - open modal when clicking on status
+  const openStatusModal = (order: Order) => {
+    setStatusOrder(order)
+    setStatusModalOpen(true)
+  }
+
+  // Handle quick status update
+  const handleStatusUpdate = async () => {
+    if (!statusOrder) return
+
+    try {
+      setIsSubmitting(true)
+      const { error } = await supabase
+        .from('orders')
+        .update({
+          status: statusOrder.status,
+          updated_at: new Date().toISOString(),
+        })
+        .eq('id', statusOrder.id)
+
+      if (error) throw error
+
+      toast.success('Order status updated')
+      setStatusModalOpen(false)
+      await fetchData()
+    } catch (err) {
+      toast.error('Failed to update status')
+    } finally {
+      setIsSubmitting(false)
+    }
+  }
+
   // ─── Orders table columns ───────────────────────────────────────────────
 
   const orderColumns = [
@@ -328,10 +429,17 @@ export default function OrdersPage() {
       cell: (order: Order) => {
         const s = STATUS_STYLES[order.status]
         return (
-          <span className={cn('inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full', s.className)}>
+          <button
+            onClick={(e) => { e.stopPropagation(); openStatusModal(order) }}
+            className={cn(
+              'inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full cursor-pointer hover:opacity-80 transition-opacity',
+              s.className
+            )}
+            title="Click to change status"
+          >
             <s.Icon size={11} />
             {s.label}
-          </span>
+          </button>
         )
       },
     },
@@ -423,13 +531,38 @@ export default function OrdersPage() {
     },
   ]
 
-  const requestActions = (r: CatalogOrderRequest): TableAction[] => [
-    {
-      label: 'View Details',
-      onClick: () => { setSelectedRequest(r); setRequestDetailOpen(true) },
-      variant: 'default',
-    },
-  ]
+  const requestActions = (r: CatalogOrderRequest): TableAction[] => {
+    const actions: TableAction[] = [
+      {
+        label: 'View Details',
+        onClick: () => { setSelectedRequest(r); setRequestDetailOpen(true) },
+        variant: 'default',
+      },
+    ]
+
+    // Only show action buttons for pending requests
+    if (r.status === 'pending') {
+      actions.unshift(
+        {
+          label: 'Accept',
+          onClick: () => openActionModal(r, 'accept'),
+          variant: 'default' as TableActionVariant,
+        },
+        {
+          label: 'Reject',
+          onClick: () => openActionModal(r, 'reject'),
+          variant: 'destructive',
+        },
+        {
+          label: 'Contact',
+          onClick: () => openActionModal(r, 'contact'),
+          variant: 'outline',
+        }
+      )
+    }
+
+    return actions
+  }
 
   if (loading) {
     return (
@@ -747,6 +880,145 @@ export default function OrdersPage() {
               <span className={cn('text-xs font-semibold px-2.5 py-1 rounded-full', REQUEST_STATUS_STYLES[selectedRequest.status])}>
                 {selectedRequest.status}
               </span>
+            </div>
+          </div>
+        </ModalForm>
+      )}
+
+      {/* Action Modal for Catalog Request (Accept/Reject/Contact) */}
+      {actionRequest && actionType && (
+        <ModalForm
+          open={actionModalOpen}
+          onOpenChange={setActionModalOpen}
+          title={
+            actionType === 'accept' ? 'Accept Request' :
+            actionType === 'reject' ? 'Reject Request' :
+            'Contact Requester'
+          }
+          description={
+            actionType === 'accept' 
+              ? 'Accept this catalog request and create an order'
+              : actionType === 'reject'
+              ? 'Reject this catalog request'
+              : 'Send a message to the requester'
+          }
+          onSubmit={handleCatalogAction}
+          isSubmitting={isSubmitting}
+          submitLabel={
+            actionType === 'accept' ? 'Accept & Create Order' :
+            actionType === 'reject' ? 'Reject Request' :
+            'Send Message'
+          }
+          maxWidth="md"
+        >
+          <div className="space-y-4">
+            {/* Contact channel selection */}
+            <div className="space-y-2">
+              <Label>Contact Channel</Label>
+              <select
+                className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold/55 transition-all appearance-none"
+                value={actionChannel}
+                onChange={(e) => setActionChannel(e.target.value as 'email' | 'whatsapp' | 'none')}
+              >
+                <option value="none">No communication</option>
+                {actionRequest.requester_email && <option value="email">Email</option>}
+                {actionRequest.requester_phone && <option value="whatsapp">WhatsApp</option>}
+              </select>
+            </div>
+
+            {/* Message */}
+            <div className="space-y-2">
+              <Label>Message (optional)</Label>
+              <Textarea
+                rows={3}
+                value={actionMessage}
+                onChange={(e) => setActionMessage(e.target.value)}
+                placeholder={
+                  actionType === 'accept'
+                    ? 'Enter order details or a welcome message...'
+                    : actionType === 'reject'
+                    ? 'Enter reason for rejection...'
+                    : 'Enter your message...'
+                }
+              />
+            </div>
+
+            {/* Only show for Accept action */}
+            {actionType === 'accept' && (
+              <>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Estimated Delivery Date</Label>
+                    <Input
+                      type="date"
+                      value={estimatedDeliveryDate}
+                      onChange={(e) => setEstimatedDeliveryDate(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Total Price</Label>
+                    <Input
+                      type="number"
+                      placeholder="0.00"
+                      value={totalPrice}
+                      onChange={(e) => setTotalPrice(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </>
+            )}
+
+            {/* Preview of contact info */}
+            {actionChannel !== 'none' && (
+              <div className="bg-brand-cream/40 rounded-xl border border-brand-border p-3 text-sm text-brand-stone">
+                {actionChannel === 'email' && actionRequest.requester_email && (
+                  <p>Message will be sent to: <span className="font-medium text-brand-ink">{actionRequest.requester_email}</span></p>
+                )}
+                {actionChannel === 'whatsapp' && actionRequest.requester_phone && (
+                  <p>Message will be sent via WhatsApp to: <span className="font-medium text-brand-ink">{actionRequest.requester_phone}</span></p>
+                )}
+              </div>
+            )}
+          </div>
+        </ModalForm>
+      )}
+
+      {/* Quick Status Update Modal */}
+      {statusOrder && (
+        <ModalForm
+          open={statusModalOpen}
+          onOpenChange={setStatusModalOpen}
+          title={`Update Order #${statusOrder.order_number} Status`}
+          description="Click on a status below to change it"
+          onSubmit={handleStatusUpdate}
+          isSubmitting={isSubmitting}
+          submitLabel="Update Status"
+          maxWidth="sm"
+        >
+          <div className="space-y-3">
+            <p className="text-sm text-brand-stone">Select new status:</p>
+            <div className="grid grid-cols-1 gap-2">
+              {(['pending', 'in_progress', 'completed', 'delivered', 'cancelled'] as Order['status'][]).map((status) => {
+                const s = STATUS_STYLES[status]
+                const isSelected = statusOrder.status === status
+                return (
+                  <button
+                    key={status}
+                    type="button"
+                    onClick={() => setStatusOrder({ ...statusOrder, status })}
+                    className={cn(
+                      'flex items-center gap-3 px-4 py-3 rounded-xl border-2 transition-all text-left',
+                      isSelected 
+                        ? 'border-brand-gold bg-brand-gold/5' 
+                        : 'border-brand-border hover:border-brand-gold/50'
+                    )}
+                  >
+                    <s.Icon className={cn('h-5 w-5', s.className.replace('bg-', 'text-').replace('text-', ''))} />
+                    <span className="font-medium text-brand-ink">{s.label}</span>
+                    {isSelected && <Check className="h-4 w-4 ml-auto text-brand-gold" />}
+                  </button>
+                )
+              })}
             </div>
           </div>
         </ModalForm>
