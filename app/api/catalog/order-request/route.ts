@@ -1,4 +1,4 @@
-import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import { CatalogOrderRequestPayload } from '@/lib/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
@@ -30,9 +30,9 @@ export async function POST(request: NextRequest) {
   }
 
   try {
-    const supabase = await createClient()
+    const admin = createAdminClient()
 
-    const { data: item, error: itemError } = await supabase
+    const { data: item, error: itemError } = await admin
       .from('shop_catalog_items')
       .select('id, shop_id, is_active')
       .eq('id', parsed.data.catalogItemId)
@@ -48,7 +48,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: 'Catalog item unavailable' }, { status: 404 })
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await admin
       .from('catalog_order_requests')
       .insert([
         {
