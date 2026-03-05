@@ -126,7 +126,7 @@ export function detectSmartIntent(message: string): IntentDetectionResult {
 
 function detectSpecificShopIntent(cleaned: string, isCommand: boolean): VoiceIntent | null {
   // Only detect specific intents if it looks like a command
-  const patterns = [
+  const intentPatterns = [
     {
       intent: 'add_customer' as const,
       patterns: [
@@ -173,7 +173,7 @@ function detectSpecificShopIntent(cleaned: string, isCommand: boolean): VoiceInt
     },
   ]
 
-  for (const { intent, patterns } of patterns) {
+  for (const { intent, patterns } of intentPatterns) {
     if (patterns.some(p => p.test(cleaned))) {
       return intent
     }
