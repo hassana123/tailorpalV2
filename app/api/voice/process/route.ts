@@ -1,6 +1,10 @@
 import { generateGroqReply, TAILORPAL_VOICE_SYSTEM_PROMPT } from '@/lib/ai/groq'
+import { generateSmartReply } from '@/lib/ai/tailorpal-voice-assistant'
+import { detectMessageType } from '@/lib/ai/tailorpal-voice-assistant'
 import { handleVoiceRequest, hasPermissionIssue, getRequiredPermissionForRequest } from '@/lib/voice/engine'
-import { getSessionKey } from '@/lib/voice/session-store'
+import { getSessionKey, getConversationContext, setConversationContext } from '@/lib/voice/session-store'
+import { getShopContext, clearShopContextCache } from '@/lib/voice/shop-awareness'
+import { detectIntent } from '@/lib/voice/intents'
 import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
 import { checkRateLimit } from '@/lib/server/rate-limit'
 import { createClient } from '@/lib/supabase/server'
@@ -58,6 +62,10 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Get or create conversation context
+    const conversationContext = getConversationContext(sessionKey)
+    conversationContext.addUserMessage(message, detectIntent(message))
+
     const voiceResult = await handleVoiceRequest({
       supabase,
       shopId,
@@ -66,23 +74,40 @@ export async function POST(request: NextRequest) {
       sessionKey,
     })
     if (voiceResult) {
+      // Add assistant response to conversation context
+      conversationContext.addAssistantMessage(voiceResult.reply, voiceResult.action)
+      setConversationContext(sessionKey, conversationContext)
       return NextResponse.json(voiceResult)
     }
 
-    // Use the enhanced system prompt for fallback
-    const enhancedPrompt = `${TAILORPAL_VOICE_SYSTEM_PROMPT}
+    // Get shop context for intelligent responses
+    const shopContext = await getShopContext(supabase, shopId)
+    const messageType = detectMessageType(message)
 
-Current user request: ${message}
+    // Use smart reply with full context for fallback
+    let smartReply = null
+    if (messageType !== 'shop_action') {
+      // For questions and general knowledge, use the smart assistant
+      smartReply = await generateSmartReply(message, {
+        conversationContext,
+        shopContext,
+        shopId,
+        userId: user.id,
+      })
+    }
 
-Keep replies under 3 short sentences.
-If the user is asking for a shop action, suggest one of these starters:
-"add customer", "add measurement", "create order", "update order status", "list customers".`
+    const reply = smartReply ?? 'I did not catch that clearly. Say "help" to hear supported commands.'
 
-    const fallback = await generateGroqReply(enhancedPrompt, message)
+    // Add assistant response to conversation context
+    conversationContext.addAssistantMessage(reply)
+    setConversationContext(sessionKey, conversationContext)
 
-    return NextResponse.json({
-      reply: fallback ?? 'I did not catch that clearly. Say "help" to hear supported commands.',
-    })
+    // Clear shop context cache periodically to ensure fresh data
+    if (Math.random() < 0.1) {
+      clearShopContextCache(shopId)
+    }
+
+    return NextResponse.json({ reply })
   } catch (error) {
     console.error('Error processing voice command:', error)
     return NextResponse.json({ error: 'Failed to process command' }, { status: 500 })
