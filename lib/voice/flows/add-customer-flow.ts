@@ -98,7 +98,7 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
     if (!name) return { reply: 'Please say at least the first name. Example: "Jane" or "Jane Doe".' }
     draft.firstName = name.firstName
     draft.lastName = name.lastName ?? null
-    session.step = name.lastName ? 'confirm' : 'ask_last_name'
+    session.step = name.lastName ? 'confirm_name' : 'ask_last_name'
     setVoiceSession(context.sessionKey, session)
     if (!name.lastName) {
       return { reply: `First name: ${name.firstName}. What is the last name? Say "skip" if unavailable.` }
@@ -109,7 +109,7 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
     return { reply: `Got ${name.firstName} ${name.lastName}. What is the email address? Say "skip" if unavailable.` }
   }
 
-  if (session.step === 'confirm') {
+  if (session.step === 'confirm_name') {
     if (isAffirmation(text)) {
       session.step = 'ask_last_name'
       setVoiceSession(context.sessionKey, session)
@@ -204,7 +204,7 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
     }
   }
 
-  if (session.step === "none") {
+  if (session.step === 'confirm') {
     if (isNo(text)) {
       clearVoiceSession(context.sessionKey)
       return { reply: 'Customer creation cancelled.' }

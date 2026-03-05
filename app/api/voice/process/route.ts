@@ -2,7 +2,7 @@
 import { generateSmartReply } from '@/lib/ai/tailorpal-voice-assistant'
 import { detectMessageType } from '@/lib/ai/tailorpal-voice-assistant'
 import { handleVoiceRequest, hasPermissionIssue, getRequiredPermissionForRequest } from '@/lib/voice/engine'
-import { getSessionKey, getConversationContext, setConversationContext } from '@/lib/voice/session-store'
+import { getSessionKey, getConversationContext, getVoiceSession, setConversationContext } from '@/lib/voice/session-store'
 import { getShopContext, clearShopContextCache } from '@/lib/voice/shop-awareness'
 //import { detectIntent } from '@/lib/voice/intents'
 //generateCorrectionResponse
@@ -67,6 +67,26 @@ export async function POST(request: NextRequest) {
     // Get or create conversation context
     const conversationContext = getConversationContext(sessionKey)
     
+    const activeSession = getVoiceSession(sessionKey)
+
+    // Always continue an active flow, even when the utterance is short
+    // (e.g. "yes", "no", numeric values) and not a command by itself.
+    if (activeSession) {
+      conversationContext.addUserMessage(message, activeSession.flow)
+      const voiceResult = await handleVoiceRequest({
+        supabase,
+        shopId,
+        userId: user.id,
+        message,
+        sessionKey,
+      })
+      if (voiceResult) {
+        conversationContext.addAssistantMessage(voiceResult.reply, voiceResult.action)
+        setConversationContext(sessionKey, conversationContext)
+        return NextResponse.json(voiceResult)
+      }
+    }
+
     // Use smart intent detector to understand what the user actually wants
     const smartIntent = detectSmartIntent(message)
     conversationContext.addUserMessage(message, smartIntent.intent)
