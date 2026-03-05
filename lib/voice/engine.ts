@@ -43,6 +43,11 @@ async function startFlow(context: VoiceFlowContext, message: string): Promise<Vo
   return null
 }
 
+function isLikelyFlowRestartCommand(message: string) {
+  const words = message.trim().split(/\s+/).filter(Boolean)
+  return words.length > 0 && words.length <= 6
+}
+
 export function getRequiredPermissionForRequest(sessionKey: string, message: string) {
   if (isCancelCommand(message)) return null
 
@@ -63,6 +68,8 @@ export async function handleVoiceRequest(context: VoiceFlowContext): Promise<Voi
 
   // Use processed message for all checks
   if (isCancelCommand(message)) {
+    const existingSession = getVoiceSession(context.sessionKey)
+    if (!existingSession) return { reply: 'There is no active action to cancel.' }
     clearVoiceSession(context.sessionKey)
     return { reply: 'Current action cancelled.' }
   }
@@ -74,6 +81,12 @@ export async function handleVoiceRequest(context: VoiceFlowContext): Promise<Voi
     clearVoiceSession(context.sessionKey)
     const started = await startFlow(context, message)
     if (started) return { reply: `Switched action.\n${started.reply}` }
+  }
+
+  if (existing && incomingFlow && incomingFlow === existing.flow && isLikelyFlowRestartCommand(message)) {
+    clearVoiceSession(context.sessionKey)
+    const restarted = await startFlow(context, message)
+    if (restarted) return { reply: `Restarted action.\n${restarted.reply}` }
   }
 
   if (existing) {

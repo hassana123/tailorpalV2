@@ -26,7 +26,9 @@ export function useVoiceRecognition({
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
   const pendingTranscriptRef = useRef('')
   const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const isActiveRef = useRef(false) // Tracks if we WANT to be listening
+  const recognitionStateRef = useRef<'idle' | 'starting' | 'listening' | 'stopping'>('idle')
   const autoSendRef = useRef(autoSend)
   const isSendingRef = useRef(isSending)
 
@@ -41,6 +43,49 @@ export function useVoiceRecognition({
       silenceTimerRef.current = null
     }
   }, [])
+
+  const clearRestartTimer = useCallback(() => {
+    if (restartTimerRef.current) {
+      clearTimeout(restartTimerRef.current)
+      restartTimerRef.current = null
+    }
+  }, [])
+
+  const isAlreadyStartedError = useCallback((error: unknown) => {
+    if (!(error instanceof Error)) return false
+    const normalizedMessage = error.message.toLowerCase()
+    return (
+      normalizedMessage.includes('already started') ||
+      normalizedMessage.includes('recognition has already started') ||
+      error.name === 'InvalidStateError'
+    )
+  }, [])
+
+  const safeStartRecognition = useCallback((source: string) => {
+    if (!recognitionRef.current) return false
+    if (recognitionStateRef.current === 'starting' || recognitionStateRef.current === 'listening') {
+      return true
+    }
+    if (!isActiveRef.current || isSendingRef.current) {
+      return false
+    }
+
+    try {
+      recognitionStateRef.current = 'starting'
+      recognitionRef.current.start()
+      return true
+    } catch (error) {
+      if (isAlreadyStartedError(error)) {
+        recognitionStateRef.current = 'listening'
+        setIsStarting(false)
+        setIsListening(true)
+        return true
+      }
+      recognitionStateRef.current = 'idle'
+      console.error(`[Voice] Failed to start recognition (${source}):`, error)
+      return false
+    }
+  }, [isAlreadyStartedError])
 
   // Map browser recognition errors to user-friendly messages
   const mapRecognitionError = useCallback((error: string) => {
@@ -83,6 +128,7 @@ export function useVoiceRecognition({
     // Handle recognition start
     recognition.onstart = () => {
       console.log('[Voice] Recognition started')
+      recognitionStateRef.current = 'listening'
       setIsListening(true)
       setIsStarting(false)
       setVoiceError('')
@@ -137,6 +183,7 @@ export function useVoiceRecognition({
     // Handle recognition end (stopped for any reason)
     recognition.onend = () => {
       console.log('[Voice] Recognition ended')
+      recognitionStateRef.current = 'idle'
       setIsListening(false)
       setIsStarting(false)
       setInterimTranscript('')
@@ -144,24 +191,26 @@ export function useVoiceRecognition({
       // If we still want to be active and not sending, restart
       if (isActiveRef.current && !isSendingRef.current) {
         console.log('[Voice] Auto-restarting recognition...')
-        // Small delay to let browser clean up
-        setTimeout(() => {
-          if (isActiveRef.current && !isSendingRef.current) {
-            recognition.start()
-          }
-        }, 100)
+        clearRestartTimer()
+        restartTimerRef.current = setTimeout(() => {
+          restartTimerRef.current = null
+          safeStartRecognition('onend-restart')
+        }, 150)
       }
     }
 
     // Handle recognition errors
     recognition.onerror = (event) => {
-      console.error('[Voice] Recognition error:', event.error)
-
       // Don't treat no-speech or aborted as errors
       if (event.error === 'no-speech' || event.error === 'aborted') {
+        if (event.error === 'no-speech') {
+          console.debug('[Voice] Recognition no-speech')
+        }
         return
       }
 
+      console.error('[Voice] Recognition error:', event.error)
+      recognitionStateRef.current = 'idle'
       setIsListening(false)
       setIsStarting(false)
       setInterimTranscript('')
@@ -173,20 +222,16 @@ export function useVoiceRecognition({
 
       // If we still want to be active, try to restart (unless permission denied)
       if (isActiveRef.current && !isSendingRef.current && event.error !== 'not-allowed') {
-        setTimeout(() => {
-          if (isActiveRef.current && !isSendingRef.current) {
-            try {
-              recognition.start()
-            } catch (e) {
-              console.error('[Voice] Failed to restart:', e)
-            }
-          }
+        clearRestartTimer()
+        restartTimerRef.current = setTimeout(() => {
+          restartTimerRef.current = null
+          safeStartRecognition('onerror-restart')
         }, 300)
       }
     }
 
     return recognition
-  }, [mapRecognitionError])
+  }, [clearRestartTimer, mapRecognitionError, safeStartRecognition])
 
   // Queue auto-send after silence timeout
   const queueAutoSend = useCallback(() => {
@@ -201,6 +246,7 @@ export function useVoiceRecognition({
       // Stop listening and send
       setInterimTranscript('')
       isActiveRef.current = false
+      recognitionStateRef.current = 'stopping'
       recognitionRef.current?.stop()
       setIsListening(false)
       setIsStarting(false)
@@ -218,15 +264,17 @@ export function useVoiceRecognition({
 
     return () => {
       clearSilenceTimer()
+      clearRestartTimer()
       isActiveRef.current = false
+      recognitionStateRef.current = 'idle'
       try {
         recognitionRef.current?.abort()
-      } catch (e) {
+      } catch {
         // Ignore abort errors
       }
       recognitionRef.current = null
     }
-  }, [initRecognition, clearSilenceTimer])
+  }, [initRecognition, clearSilenceTimer, clearRestartTimer])
 
   // Start listening - this is what gets called when user clicks the button
   const startListening = useCallback(() => {
@@ -251,6 +299,7 @@ export function useVoiceRecognition({
 
     // Clear any existing timers
     clearSilenceTimer()
+    clearRestartTimer()
 
     // Reset state
     setVoiceError('')
@@ -265,34 +314,24 @@ export function useVoiceRecognition({
     // Start recognition with retry logic
     const tryStart = (retries: number) => {
       if (!recognitionRef.current) return
-
-      try {
-        recognitionRef.current.start()
+      if (safeStartRecognition('startListening')) {
         console.log('[Voice] Recognition started successfully')
-      } catch (error) {
-        console.error('[Voice] Failed to start:', error)
+        return
+      }
 
-        // If already started, that's fine
-        if (error instanceof Error && error.message.includes('already started')) {
-          setIsStarting(false)
-          setIsListening(true)
-          return
-        }
-
-        // Retry if we have retries left
-        if (retries > 0) {
-          setTimeout(() => tryStart(retries - 1), 200)
-        } else {
-          setIsStarting(false)
-          setVoiceError('Could not start microphone. Please try again.')
-          isActiveRef.current = false
-        }
+      // Retry if we have retries left
+      if (retries > 0) {
+        setTimeout(() => tryStart(retries - 1), 200)
+      } else {
+        setIsStarting(false)
+        setVoiceError('Could not start microphone. Please try again.')
+        isActiveRef.current = false
       }
     }
 
     // Try to start with 3 retries
     tryStart(3)
-  }, [initRecognition, clearSilenceTimer])
+  }, [initRecognition, clearRestartTimer, clearSilenceTimer, safeStartRecognition])
 
   // Stop listening - user manually stopped or auto-send triggered
   const stopListening = useCallback(() => {
@@ -300,33 +339,38 @@ export function useVoiceRecognition({
 
     isActiveRef.current = false
     clearSilenceTimer()
+    clearRestartTimer()
+    recognitionStateRef.current = 'stopping'
 
     try {
       recognitionRef.current?.stop()
-    } catch (e) {
+    } catch {
       // Ignore stop errors
     }
 
     setIsListening(false)
     setIsStarting(false)
     setInterimTranscript('')
-  }, [clearSilenceTimer])
+  }, [clearRestartTimer, clearSilenceTimer])
 
   // Pause listening (temporarily, for when sending)
   const pauseListening = useCallback(() => {
     console.log('[Voice] Pause listening')
 
     clearSilenceTimer()
+    clearRestartTimer()
+    // Pause should prevent automatic onend restart until explicit resume.
+    isActiveRef.current = false
+    recognitionStateRef.current = 'stopping'
 
     try {
       recognitionRef.current?.stop()
-    } catch (e) {
+    } catch {
       // Ignore
     }
 
     setInterimTranscript('')
-    // Note: isActiveRef stays true, we want to resume after
-  }, [clearSilenceTimer])
+  }, [clearRestartTimer, clearSilenceTimer])
 
   // Resume listening after pause
   const resumeListening = useCallback(() => {
@@ -336,6 +380,7 @@ export function useVoiceRecognition({
 
     // Mark as active again
     isActiveRef.current = true
+    clearRestartTimer()
 
     // Reset transcript for new session
     pendingTranscriptRef.current = ''
@@ -343,15 +388,11 @@ export function useVoiceRecognition({
     setInterimTranscript('')
     setVoiceError('')
 
-    // Try to start
-    try {
-      recognitionRef.current.start()
-    } catch (e) {
-      console.error('[Voice] Failed to resume:', e)
+    if (!safeStartRecognition('resumeListening')) {
       // If failed, try full restart
       setTimeout(() => startListening(), 100)
     }
-  }, [startListening])
+  }, [clearRestartTimer, safeStartRecognition, startListening])
 
   return {
     isListening,

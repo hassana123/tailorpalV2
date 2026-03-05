@@ -89,6 +89,7 @@ export function isCancel(message: string) {
 export function parseFullName(message: string) {
   const cleaned = message
     .replace(/\b(my name is|name is|it is|it's|customer is|customer name is)\b/gi, '')
+    .replace(/\b(add|create|new|register)\s+(a\s+)?(new\s+)?(customer|client)\b/gi, '')
     .replace(/[^a-zA-Z\s'-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
@@ -114,7 +115,7 @@ export function parseEmail(message: string) {
   if (direct?.[0]) return direct[0].toLowerCase()
 
   // Then try spoken forms: "hassana at gmail dot com"
-  const normalized = message
+  let normalized = message
     .toLowerCase()
     .replace(/[(),]/g, ' ')
     .replace(/\b(at sign|atsign|at)\b/g, ' @ ')
@@ -124,6 +125,33 @@ export function parseEmail(message: string) {
     .replace(/\bplus\b/g, ' + ')
     .replace(/\s+/g, ' ')
     .trim()
+
+  // Common provider and TLD speech/transcription fixes
+  normalized = normalized
+    .replace(/\bg\s*mail\b/g, 'gmail')
+    .replace(/\by\s*ahoo\b/g, 'yahoo')
+    .replace(/\bhot\s*mail\b/g, 'hotmail')
+    .replace(/\bout\s*look\b/g, 'outlook')
+    .replace(/\bi\s*cloud\b/g, 'icloud')
+    .replace(/\bproton\s*mail\b/g, 'protonmail')
+    .replace(/\bdot\s*com\b/g, '.com')
+    .replace(/\bdot\s*net\b/g, '.net')
+    .replace(/\bdot\s*org\b/g, '.org')
+    .replace(/\bdot\s*ng\b/g, '.ng')
+    .replace(/\bdot\s*co\b/g, '.co')
+    .replace(/\bdot\s*io\b/g, '.io')
+    .replace(/\bdot\s*edu\b/g, '.edu')
+    .replace(/\bdot\s*gov\b/g, '.gov')
+    .replace(/\bdotcom\b/g, '.com')
+    .replace(/\bdotnet\b/g, '.net')
+    .replace(/\bdotorg\b/g, '.org')
+    .replace(/\bdotng\b/g, '.ng')
+    .replace(/\bdotco\b/g, '.co')
+    .replace(/\bdotio\b/g, '.io')
+    .replace(/\bdotedu\b/g, '.edu')
+    .replace(/\bdotgov\b/g, '.gov')
+
+  normalized = normalized
     .replace(/\s*@\s*/g, '@')
     .replace(/\s*\.\s*/g, '.')
     .replace(/\s*_\s*/g, '_')

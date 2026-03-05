@@ -101,5 +101,5 @@ export function getFlowPermission(flow: VoiceFlow) {
 
 export function isCancelCommand(message: string) {
   const cleaned = preprocessVoiceInput(message)
-  return /\b(cancel|stop|start over|reset|never mind|abort|discard|forget it)\b/i.test(cleaned)
+  return /\b(cancel|cancel it|stop|stop it|start over|restart|reset|never ?mind|abort|discard|forget it|forget this|end this|quit)\b/i.test(cleaned)
 }
