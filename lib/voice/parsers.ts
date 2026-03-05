@@ -57,25 +57,20 @@ export function isYes(message: string) {
 
 /**
  * Check if message is a no response - expanded to handle more variations
+ * This is very permissive to catch all negations
  */
 export function isNo(message: string) {
   const cleaned = preprocessVoiceInput(message)
-  return /\b(no|nope|cancel|don'?t|stop|not|negative|nah)\b/i.test(cleaned)
+  return /\b(no|nope|don't|dont|don t|nah|nay|negative|not really|not at all|not now|cancel|stop|false|none)\b/i.test(cleaned)
 }
 
 /**
- * Check if message is a skip request - fixed to handle "skip skip" and repetitions
- * This is the key fix for the issue where "skip skip" was recorded as "skip skip" instead of being recognized as skip
+ * Check if message is a skip request - very permissive to catch all skip variations
  */
 export function isSkip(message: string) {
   const cleaned = preprocessVoiceInput(message)
-  // Also accept original message for backwards compatibility
-  const original = message.toLowerCase().trim()
-  
-  // Check both cleaned and original - handle single "skip", "skip skip", "skip skip skip"
-  // Also handle "skip it", "skip this", "skip for now" etc.
-  return /^\s*(skip|none|no|not now|n\/a|na|next|pass|leave it|skip it|skip this)\s*$/i.test(cleaned) ||
-         /^\s*(skip|none|no|not now|n\/a|na|next|pass|leave it|skip it|skip this)\s*$/i.test(original)
+  // Handle all variations: "skip", "no", "none", "not now", "leave blank", etc.
+  return /\b(skip|none|no|not now|n\/a|na|next|pass|leave it|leave blank|leave empty|blank|empty)\b/i.test(cleaned)
 }
 
 /**
@@ -87,15 +82,26 @@ export function isCancel(message: string) {
 }
 
 export function parseFullName(message: string) {
+  // Don't extract names from questions like "how can i add a customer"
+  // Only extract if message looks like someone actually stating a name
+  if (/\b(how|what|when|where|why|which|can i|could|would|should)\s+(i|we|do|you)\b/i.test(message)) {
+    return null
+  }
+
   const cleaned = message
-    .replace(/\b(my name is|name is|it is|it's|customer is|customer name is)\b/gi, '')
+    .replace(/\b(my name is|name is|it is|it's|customer is|customer name is|i am|i'm)\b/gi, '')
     .replace(/\b(add|create|new|register)\s+(a\s+)?(new\s+)?(customer|client)\b/gi, '')
     .replace(/[^a-zA-Z\s'-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
   const parts = cleaned.split(' ').filter(Boolean)
-  if (parts.length < 1) return null
+  // Require at least a 2-character first name to avoid extracting single letters or junk
+  if (parts.length < 1 || parts[0].length < 2) return null
+
+  // Reject if it looks like common words that aren't names
+  const commonWords = ['how', 'what', 'when', 'where', 'why', 'which', 'can', 'the', 'a', 'and', 'or', 'for', 'to', 'do', 'is', 'it', 'that', 'this']
+  if (commonWords.includes(parts[0].toLowerCase())) return null
 
   const firstName = capitalize(parts[0])
   const lastName = parts.length > 1 ? capitalize(parts.slice(1).join(' ')) : null

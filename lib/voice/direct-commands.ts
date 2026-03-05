@@ -16,7 +16,7 @@ export async function runDirectCommand(
   intent: VoiceIntent,
   message: string,
 ): Promise<VoiceReply | null> {
-  if (intent === 'help') return { reply: VOICE_HELP_TEXT }
+  if (intent === 'help_request') return { reply: VOICE_HELP_TEXT }
 
   if (intent === 'list_customers') {
     const customers = await listCustomers(supabase, shopId, 12)
