@@ -89,7 +89,7 @@ export async function getShopContext(supabase: VoiceSupabase, shopId: string): P
       shopId,
       shopName: shopData?.name,
       totalCustomers: totalCustomers || 0,
-      recentCustomers: recentCustomers.map((c: any) => ({
+      recentCustomers: (recentCustomers || []).map((c: any) => ({
         id: c.id,
         firstName: c.firstName,
         lastName: c.lastName,

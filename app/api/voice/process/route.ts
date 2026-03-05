@@ -81,19 +81,39 @@ export async function POST(request: NextRequest) {
     }
 
     // Get shop context for intelligent responses
-    const shopContext = await getShopContext(supabase, shopId)
+    let shopContext
+    try {
+      shopContext = await getShopContext(supabase, shopId)
+    } catch (error) {
+      console.error('Failed to fetch shop context:', error)
+      shopContext = {
+        shopId,
+        totalCustomers: 0,
+        recentCustomers: [],
+        pendingOrders: 0,
+        recentOrders: [],
+        totalOrders: 0,
+        completedOrders: 0,
+        lastFetchTime: Date.now(),
+      }
+    }
+
     const messageType = detectMessageType(message)
 
     // Use smart reply with full context for fallback
     let smartReply = null
     if (messageType !== 'shop_action') {
       // For questions and general knowledge, use the smart assistant
-      smartReply = await generateSmartReply(message, {
-        conversationContext,
-        shopContext,
-        shopId,
-        userId: user.id,
-      })
+      try {
+        smartReply = await generateSmartReply(message, {
+          conversationContext,
+          shopContext,
+          shopId,
+          userId: user.id,
+        })
+      } catch (error) {
+        console.error('Failed to generate smart reply:', error)
+      }
     }
 
     const reply = smartReply ?? 'I did not catch that clearly. Say "help" to hear supported commands.'

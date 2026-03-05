@@ -112,7 +112,7 @@ export async function generateSmartReply(
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768', // Faster model for better latency
+        model: 'llama-3.1-70b-versatile', // Latest Groq model - free tier, highly capable
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
@@ -161,7 +161,7 @@ export async function streamSmartReply(userMessage: string, options: AssistantOp
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'mixtral-8x7b-32768',
+        model: 'llama-3.1-70b-versatile',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userMessage },
