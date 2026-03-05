@@ -45,6 +45,7 @@ export type PendingAction =
   | 'ask_custom_measurements'
   | 'ask_measurements'
   | 'ask_description'
+  | 'ask_optional_details_choice'
   | 'ask_fabric'
   | 'ask_due_date'
   | 'ask_total_price'

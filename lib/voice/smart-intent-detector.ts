@@ -16,6 +16,10 @@ export interface IntentDetectionResult {
   shouldExecuteFlow: boolean // False for "how can I...", true for "add customer"
 }
 
+export interface HelpResponseOptions {
+  addressingName?: string | null
+}
+
 // Question patterns: "how", "what", "can I", "tell me", "explain", "help me"
 const QUESTION_PATTERNS = [
   /^(how|what|when|where|why|who|which)\s+/i,
@@ -185,28 +189,32 @@ function detectSpecificShopIntent(cleaned: string): VoiceIntent | null {
 /**
  * Generate a helpful response for when user asks HOW to do something
  */
-export function generateHelpResponse(intent: VoiceIntent): string {
+export function generateHelpResponse(intent: VoiceIntent, options?: HelpResponseOptions): string {
+  const addressee = options?.addressingName?.trim()
+  const greetingPrefix = addressee ? `Hello ${addressee}! ` : 'Hello! '
+  const addressPrefix = addressee ? `${addressee}, ` : ''
+
   const helpMessages: Record<VoiceIntent, string> = {
     help_request:
-      "To add a customer, say 'add customer' and I'll guide you through entering their name, email, and phone. You can also say 'add customer John Smith' to include info right away.",
+      `${addressPrefix}to add a customer, say 'add customer' and I'll guide you through entering their name, email, and phone. You can also say 'add customer John Smith' to include info right away.`,
     add_customer:
-      "To add a customer, say 'add customer' and then just tell me their name, email, and phone number.",
+      `${addressPrefix}to add a customer, say 'add customer' and then just tell me their name, email, and phone number.`,
     add_measurement:
-      "To add measurements, say 'add measurement' and then give me the measurements like 'chest 40, waist 32'. Or I can ask you for each one.",
-    create_order: "To create an order, say 'create order' and tell me the customer name and order details.",
-    list_customers: "Say 'list customers' to see all your customers.",
-    list_orders: "Say 'list orders' to see all your orders.",
-    find_customer: "Say 'find customer' followed by the name to search for a specific customer.",
-    pending_orders: "Say 'pending orders' to see orders that are still in progress.",
+      `${addressPrefix}to add measurements, say 'add measurement' and then give me the measurements like 'chest 40, waist 32'. Or I can ask you for each one.`,
+    create_order: `${addressPrefix}to create an order, say 'create order' and tell me the customer name and order details.`,
+    list_customers: `${addressPrefix}say 'list customers' to see all your customers.`,
+    list_orders: `${addressPrefix}say 'list orders' to see all your orders.`,
+    find_customer: `${addressPrefix}say 'find customer' followed by the name to search for a specific customer.`,
+    pending_orders: `${addressPrefix}say 'pending orders' to see orders that are still in progress.`,
     knowledge_question:
-      "I can help you with your tailor shop operations. Try asking things like 'add customer', 'create order', or 'list orders'.",
+      `${addressPrefix}I can help you with your tailor shop operations. Try asking things like 'add customer', 'create order', or 'list orders'.`,
     greeting:
-      "Hello! I'm your AI assistant for managing your tailor shop. You can ask me to add customers, create orders, add measurements, list customers, or even answer general questions!",
-    update_order_status: "To update an order, say 'update order' followed by the order number.",
-    delete_customer: "To delete a customer, say 'delete customer' followed by their name.",
-    shop_stats: "Say 'shop stats' to see quick statistics about your shop.",
+      `${greetingPrefix}I'm your AI assistant for managing your tailor shop. You can ask me to add customers, create orders, add measurements, list customers, or even answer general questions!`,
+    update_order_status: `${addressPrefix}to update an order, say 'update order' followed by the order number.`,
+    delete_customer: `${addressPrefix}to delete a customer, say 'delete customer' followed by their name.`,
+    shop_stats: `${addressPrefix}say 'shop stats' to see quick statistics about your shop.`,
     unknown:
-      'I can help you manage your shop. Try saying "add customer", "create order", "list customers", or "help" to learn more.',
+      `${addressPrefix}I can help you manage your shop. Try saying "add customer", "create order", "list customers", or "help" to learn more.`,
   }
 
   return helpMessages[intent] || helpMessages.unknown

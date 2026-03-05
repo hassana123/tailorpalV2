@@ -14,11 +14,17 @@ type AssistantState = 'idle' | 'greeting' | 'instructing' | 'listening' | 'proce
 
 interface FloatingVoiceAssistantProps {
   shopId: string
+  addressingName?: string
 }
 
 const PICKER_SELECTION_COMMAND = '@select_standard_measurements'
 
-export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) {
+function buildAssistantGreeting(addressingName?: string) {
+  const name = addressingName?.trim()
+  return name ? `Hello ${name}, welcome to TailorPal!` : 'Hello, welcome to TailorPal!'
+}
+
+export function FloatingVoiceAssistant({ shopId, addressingName }: FloatingVoiceAssistantProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [state, setState] = useState<AssistantState>('idle')
   const [currentInstruction, setCurrentInstruction] = useState(0)
@@ -156,7 +162,7 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
     if (!hasGreeted.current) {
       // First time - show greeting then instructions
       setState('greeting')
-      speak("Hello, welcome to TailorPal!")
+      speak(buildAssistantGreeting(addressingName))
       
       setTimeout(() => {
         setState('instructing')
@@ -169,7 +175,7 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
     }
     
     hasGreeted.current = true
-  }, [speak, startListening])
+  }, [addressingName, speak, startListening])
 
   // Cycle through instructions
   const startInstructionCycle = useCallback(() => {
@@ -378,7 +384,7 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
                     animate={{ opacity: 1, y: 0 }}
                     className="text-center text-brand-ink font-medium text-lg mb-2"
                   >
-                    {state === 'greeting' && "Hello, welcome to TailorPal!"}
+                    {state === 'greeting' && buildAssistantGreeting(addressingName)}
                     {state === 'instructing' && instructions[currentInstruction]?.text}
                     {state === 'listening' && "I'm listening..."}
                     {state === 'processing' && "Processing..."}

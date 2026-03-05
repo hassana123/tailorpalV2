@@ -18,6 +18,42 @@ const payloadSchema = z.object({
   shopId: z.string().uuid(),
 })
 
+function normalizeFirstName(value: string | null | undefined) {
+  if (!value) return null
+  const cleaned = value.trim().replace(/\s+/g, ' ')
+  if (!cleaned) return null
+  return cleaned.split(' ')[0] ?? null
+}
+
+function normalizeShopName(value: string | null | undefined) {
+  if (!value) return null
+  const cleaned = value.trim().replace(/\s+/g, ' ')
+  return cleaned || null
+}
+
+async function resolveAddressingName(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  shopId: string,
+) {
+  const { data: profileData } = await supabase
+    .from('profiles')
+    .select('first_name')
+    .eq('id', userId)
+    .maybeSingle()
+
+  const firstName = normalizeFirstName(profileData?.first_name)
+  if (firstName) return firstName
+
+  const { data: shopData } = await supabase
+    .from('shops')
+    .select('name')
+    .eq('id', shopId)
+    .maybeSingle()
+
+  return normalizeShopName(shopData?.name)
+}
+
 export async function POST(request: NextRequest) {
   try {
     const supabase = await createClient()
@@ -53,6 +89,13 @@ export async function POST(request: NextRequest) {
     }
 
     const sessionKey = getSessionKey(user.id, shopId)
+    let cachedAddressingName: string | null | undefined
+    const getAddressingName = async () => {
+      if (cachedAddressingName !== undefined) return cachedAddressingName
+      cachedAddressingName = await resolveAddressingName(supabase, user.id, shopId)
+      return cachedAddressingName
+    }
+
     const requiredPermission = getRequiredPermissionForRequest(sessionKey, message)
     if (requiredPermission) {
       const allowed = await hasStaffPermission(user.id, shopId, requiredPermission)
@@ -93,7 +136,9 @@ export async function POST(request: NextRequest) {
 
     // If it's a help request or question about how to do something, DON'T start a flow
     if (!smartIntent.shouldExecuteFlow && (smartIntent.intent === 'help_request' || smartIntent.intent === 'greeting' || smartIntent.intent === 'knowledge_question')) {
-      const helpResponse = generateHelpResponse(smartIntent.intent)
+      const helpResponse = generateHelpResponse(smartIntent.intent, {
+        addressingName: await getAddressingName(),
+      })
       conversationContext.addAssistantMessage(helpResponse)
       setConversationContext(sessionKey, conversationContext)
       return NextResponse.json({ reply: helpResponse })
@@ -146,6 +191,7 @@ export async function POST(request: NextRequest) {
           shopContext,
           shopId,
           userId: user.id,
+          addressingName: await getAddressingName(),
         })
       } catch (error) {
         console.error('Failed to generate smart reply:', error)
