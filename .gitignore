@@ -25,8 +25,8 @@ out
 .env.development
 
 # Supabase
-supabase/migrations/
-supabase/sql/
+#supabase/migrations/
+#supabase/sql/
 
 # Custom scripts
 
