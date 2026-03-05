@@ -5,6 +5,7 @@ import { handleVoiceRequest, hasPermissionIssue, getRequiredPermissionForRequest
 import { getSessionKey, getConversationContext, setConversationContext } from '@/lib/voice/session-store'
 import { getShopContext, clearShopContextCache } from '@/lib/voice/shop-awareness'
 import { detectIntent } from '@/lib/voice/intents'
+import { detectSmartIntent, generateHelpResponse, generateCorrectionResponse } from '@/lib/voice/smart-intent-detector'
 import { hasShopAccess, hasStaffPermission } from '@/lib/server/authz'
 import { checkRateLimit } from '@/lib/server/rate-limit'
 import { createClient } from '@/lib/supabase/server'
@@ -64,20 +65,34 @@ export async function POST(request: NextRequest) {
 
     // Get or create conversation context
     const conversationContext = getConversationContext(sessionKey)
-    conversationContext.addUserMessage(message, detectIntent(message))
+    
+    // Use smart intent detector to understand what the user actually wants
+    const smartIntent = detectSmartIntent(message)
+    conversationContext.addUserMessage(message, smartIntent.intent)
 
-    const voiceResult = await handleVoiceRequest({
-      supabase,
-      shopId,
-      userId: user.id,
-      message,
-      sessionKey,
-    })
-    if (voiceResult) {
-      // Add assistant response to conversation context
-      conversationContext.addAssistantMessage(voiceResult.reply, voiceResult.action)
+    // If it's a help request or question about how to do something, DON'T start a flow
+    if (!smartIntent.shouldExecuteFlow && (smartIntent.intent === 'help_request' || smartIntent.intent === 'greeting' || smartIntent.intent === 'knowledge_question')) {
+      const helpResponse = generateHelpResponse(smartIntent.intent)
+      conversationContext.addAssistantMessage(helpResponse)
       setConversationContext(sessionKey, conversationContext)
-      return NextResponse.json(voiceResult)
+      return NextResponse.json({ reply: helpResponse })
+    }
+
+    // Only try voice flows if it's actually a command to execute
+    if (smartIntent.shouldExecuteFlow) {
+      const voiceResult = await handleVoiceRequest({
+        supabase,
+        shopId,
+        userId: user.id,
+        message,
+        sessionKey,
+      })
+      if (voiceResult) {
+        // Add assistant response to conversation context
+        conversationContext.addAssistantMessage(voiceResult.reply, voiceResult.action)
+        setConversationContext(sessionKey, conversationContext)
+        return NextResponse.json(voiceResult)
+      }
     }
 
     // Get shop context for intelligent responses

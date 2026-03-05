@@ -186,12 +186,15 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
   }
 
   if (session.step === 'ask_measurement_timing') {
+    // Only accept clear yes/no responses, not random words
+    if (!isYes(text) && !isNo(text) && !isSkip(text)) {
+      return { reply: 'Please say "yes" to add measurements now, or "no" to skip for later.' }
+    }
+
     if (isYes(text)) {
       draft.addMeasurementsNow = true
-    } else if (isNo(text) || isSkip(text)) {
-      draft.addMeasurementsNow = false
     } else {
-      return { reply: 'Please say "yes" to add measurements now, or "no" to add later.' }
+      draft.addMeasurementsNow = false
     }
 
     session.step = 'confirm'
