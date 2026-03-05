@@ -13,13 +13,14 @@ export interface AssistantOptions {
   shopContext: ShopContextData
   shopId: string
   userId: string
+  addressingName?: string | null
 }
 
 /**
  * Generate an enhanced system prompt with full context awareness
  */
 export function generateEnhancedSystemPrompt(options: AssistantOptions): string {
-  const { conversationContext, shopContext } = options
+  const { conversationContext, shopContext, addressingName } = options
 
   const shopContextString = formatShopContextForPrompt(shopContext)
   const conversationHistory = conversationContext.getContext()
@@ -29,6 +30,10 @@ export function generateEnhancedSystemPrompt(options: AssistantOptions): string 
     workingObject.type !== 'none'
       ? `User is currently working with: ${workingObject.type}${workingObject.name ? ` named "${workingObject.name}"` : ''}`
       : ''
+
+  const addressingRule = addressingName
+    ? `Preferred addressee: ${addressingName}`
+    : 'Preferred addressee: not provided'
 
   return `You are TailorPal, an intelligent voice assistant for a professional tailor shop management system.
 
@@ -60,6 +65,7 @@ ${workingObjectInfo ? `## Current Task\n${workingObjectInfo}` : ''}
 8. **Natural Flow**: Maintain natural conversation flow, not robotic
 9. **Context Awareness**: Use recent shop data to make intelligent suggestions
 10. **General Knowledge**: For non-shop questions, provide helpful answers but try to connect back to shop context
+11. **User Addressing**: ${addressingRule}
 
 ## Available Shop Actions (for when user wants to do something)
 - "add customer" - Start adding a new customer
@@ -74,7 +80,7 @@ ${workingObjectInfo ? `## Current Task\n${workingObjectInfo}` : ''}
 
 ## Response Style
 - Be conversational and friendly
-- Use the user's names when you know them
+- Address the user as the preferred addressee when greeting
 - Provide helpful suggestions based on context
 - Don't be robotic or overly formal
 - If unsure, ask clarifying questions
@@ -82,6 +88,7 @@ ${workingObjectInfo ? `## Current Task\n${workingObjectInfo}` : ''}
 
 ## Important Rules
 - Never make up information about customers or orders
+- Never address the user using any customer name from shop context
 - Always confirm before making changes to data
 - If the user is correcting a value, always acknowledge: "Got it, changed [field] to [value]"
 - For multi-part requests, handle one part at a time

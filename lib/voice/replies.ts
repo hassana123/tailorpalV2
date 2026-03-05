@@ -50,7 +50,6 @@ export function summarizeOrderDraft(draft: CreateOrderDraft) {
   return [
     `Customer: ${draft.customerName ?? 'Unknown'}`,
     `Design: ${draft.designDescription ?? 'Not provided'}`,
-    `Fabric: ${draft.fabricDetails ?? 'Not provided'}`,
     `Delivery Date: ${draft.estimatedDeliveryDate ?? 'Not provided'}`,
     `Total Price: ${draft.totalPrice ?? 'Not provided'}`,
     `Notes: ${draft.notes ?? 'Not provided'}`,

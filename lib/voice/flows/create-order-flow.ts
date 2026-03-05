@@ -64,13 +64,30 @@ export async function continueCreateOrderFlow(context: VoiceFlowContext): Promis
   if (session.step === 'ask_description') {
     if (!text) return { reply: 'Please provide a short design description.' }
     draft.designDescription = text
-    session.step = 'ask_fabric'
+    session.step = 'ask_optional_details_choice'
     setVoiceSession(context.sessionKey, session)
-    return { reply: 'Any fabric details? Say "skip" if none.' }
+    return {
+      reply:
+        'Do you want to add optional order details like delivery date, total price, or notes? Say "yes" or "no".',
+    }
   }
 
-  if (session.step === 'ask_fabric') {
-    draft.fabricDetails = isSkip(text) ? null : text
+  if (session.step === 'ask_optional_details_choice') {
+    if (isNo(text) || isSkip(text)) {
+      session.step = 'confirm'
+      setVoiceSession(context.sessionKey, session)
+      return {
+        reply: `Please confirm this order:\n${summarizeOrderDraft(draft)}\n\nSay "yes" to create it or "no" to cancel.`,
+      }
+    }
+
+    if (!isYes(text)) {
+      return {
+        reply:
+          'Please say "yes" to add optional details, or "no" to continue with only required fields.',
+      }
+    }
+
     session.step = 'ask_due_date'
     setVoiceSession(context.sessionKey, session)
     return { reply: 'Delivery date in YYYY-MM-DD format? Say "skip" if not set.' }

@@ -119,6 +119,14 @@ function getStaffRouteGate(
   return { allowed: true }
 }
 
+function normalizeShopIdFromPath(pathname: string): string | null {
+  const raw = pathname.match(/^\/dashboard\/shop\/([^/]+)/)?.[1] ?? null
+  if (!raw || raw === 'setup') return null
+  const uuidPattern =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i
+  return uuidPattern.test(raw) ? raw : null
+}
+
 export default function ShopLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname()
   const router   = useRouter()
@@ -142,7 +150,13 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   const [staffPermissionsLoaded, setStaffPermissionsLoaded] = useState(false)
   const deniedPathRef = useRef<string | null>(null)
 
-  const shopId = pathname.match(/^\/dashboard\/shop\/([^/]+)/)?.[1]
+  const shopId = useMemo(() => normalizeShopIdFromPath(pathname), [pathname])
+  const addressingName = useMemo(() => {
+    const first = firstName.trim()
+    if (first) return first
+    const shop = shopName.trim()
+    return shop || undefined
+  }, [firstName, shopName])
 
   useEffect(() => { void loadAccountProfile() }, [shopId])
 
@@ -353,7 +367,11 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
   const showFloatingAssistant = !pathname?.includes('/voice-assistant')
 
   return (
-    <FloatingAssistantProvider shopId={shopId || ''} enabled={showFloatingAssistant}>
+    <FloatingAssistantProvider
+      shopId={shopId || ''}
+      addressingName={addressingName}
+      enabled={showFloatingAssistant}
+    >
       <div className="flex h-screen overflow-hidden bg-brand-cream">
         {/* Desktop Sidebar - Hidden on mobile */}
         <div className="hidden lg:block">
