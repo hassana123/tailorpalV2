@@ -2,6 +2,26 @@ export interface VoiceAssistantProps {
   shopId: string
 }
 
+export interface VoiceStandardMeasurementOption {
+  key: string
+  label: string
+  category: string
+}
+
+export interface VoiceMeasurementPickerPrompt {
+  type: 'measurement_standard_picker'
+  measurements: VoiceStandardMeasurementOption[]
+}
+
+export type VoicePrompt = VoiceMeasurementPickerPrompt
+
+export interface VoiceProcessResponse {
+  reply?: string
+  action?: string
+  prompt?: VoicePrompt
+  error?: string
+}
+
 export type ChatMessage = {
   id: string
   role: 'user' | 'assistant' | 'system'

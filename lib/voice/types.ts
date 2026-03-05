@@ -27,13 +27,19 @@ export type VoiceFlow =
 export type PendingAction =
   | 'none'
   | 'ask_name'
+  | 'ask_last_name'
   | 'ask_phone'
   | 'ask_email'
   | 'ask_address'
   | 'ask_city'
   | 'ask_country'
   | 'ask_notes'
+  | 'ask_measurement_timing'
   | 'ask_customer'
+  | 'ask_standard_selection'
+  | 'ask_standard_value'
+  | 'ask_custom_choice'
+  | 'ask_custom_measurements'
   | 'ask_measurements'
   | 'ask_description'
   | 'ask_fabric'
@@ -45,18 +51,21 @@ export type PendingAction =
 
 export interface AddCustomerDraft {
   firstName?: string
-  lastName?: string
+  lastName?: string | null
   phone?: string | null
   email?: string | null
   address?: string | null
   city?: string | null
   country?: string | null
   notes?: string | null
+  addMeasurementsNow?: boolean
 }
 
 export interface AddMeasurementDraft {
   customerId?: string
   customerName?: string
+  selectedStandardKeys: string[]
+  currentStandardIndex: number
   standardMeasurements: Record<string, number>
   customMeasurements: Record<string, number>
   notes?: string | null
@@ -93,7 +102,21 @@ export interface VoiceSession {
   deleteCustomer?: DeleteCustomerDraft
 }
 
+export interface VoiceMeasurementOption {
+  key: string
+  label: string
+  category: string
+}
+
+export interface VoiceMeasurementPickerPrompt {
+  type: 'measurement_standard_picker'
+  measurements: VoiceMeasurementOption[]
+}
+
+export type VoicePrompt = VoiceMeasurementPickerPrompt
+
 export interface VoiceReply {
   reply: string
   action?: string
+  prompt?: VoicePrompt
 }

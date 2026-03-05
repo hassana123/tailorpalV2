@@ -88,16 +88,16 @@ export function isCancel(message: string) {
 
 export function parseFullName(message: string) {
   const cleaned = message
-    .replace(/\b(my name is|name is|it is|it's)\b/gi, '')
+    .replace(/\b(my name is|name is|it is|it's|customer is|customer name is)\b/gi, '')
     .replace(/[^a-zA-Z\s'-]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim()
 
   const parts = cleaned.split(' ').filter(Boolean)
-  if (parts.length < 2) return null
+  if (parts.length < 1) return null
 
   const firstName = capitalize(parts[0])
-  const lastName = capitalize(parts.slice(1).join(' '))
+  const lastName = parts.length > 1 ? capitalize(parts.slice(1).join(' ')) : null
   return { firstName, lastName }
 }
 
@@ -109,8 +109,28 @@ export function parsePhone(message: string) {
 }
 
 export function parseEmail(message: string) {
-  // Use original message
-  const match = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  // First try direct email extraction
+  const direct = message.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
+  if (direct?.[0]) return direct[0].toLowerCase()
+
+  // Then try spoken forms: "hassana at gmail dot com"
+  const normalized = message
+    .toLowerCase()
+    .replace(/[(),]/g, ' ')
+    .replace(/\b(at sign|atsign|at)\b/g, ' @ ')
+    .replace(/\b(dot|period|point)\b/g, ' . ')
+    .replace(/\b(underscore|under score)\b/g, ' _ ')
+    .replace(/\b(dash|hyphen|minus)\b/g, ' - ')
+    .replace(/\bplus\b/g, ' + ')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/\s*@\s*/g, '@')
+    .replace(/\s*\.\s*/g, '.')
+    .replace(/\s*_\s*/g, '_')
+    .replace(/\s*-\s*/g, '-')
+    .replace(/\s*\+\s*/g, '+')
+
+  const match = normalized.match(/[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/i)
   return match?.[0]?.toLowerCase() ?? null
 }
 

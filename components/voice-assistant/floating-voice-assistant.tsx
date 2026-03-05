@@ -4,8 +4,10 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { motion, AnimatePresence, useDragControls } from 'framer-motion'
 import { Mic, X, Volume2, Sparkles, Command, MessageCircle, Zap, GripHorizontal } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { MeasurementSelectionModal } from './measurement-selection-modal'
 import { useVoiceRecognition } from './hooks/use-voice-recognition'
 import { useVoiceSynthesis } from './hooks/use-voice-synthesis'
+import { VoiceMeasurementPickerPrompt, VoiceProcessResponse } from './types'
 //import { SILENCE_TIMEOUT_MS } from './constants'
 
 type AssistantState = 'idle' | 'greeting' | 'instructing' | 'listening' | 'processing' | 'responding'
@@ -14,6 +16,8 @@ interface FloatingVoiceAssistantProps {
   shopId: string
 }
 
+const PICKER_SELECTION_COMMAND = '@select_standard_measurements'
+
 export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) {
   const [isOpen, setIsOpen] = useState(false)
   const [state, setState] = useState<AssistantState>('idle')
@@ -21,12 +25,14 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
   const [transcript, setTranscript] = useState('')
   const [response, setResponse] = useState('')
   const [isDragging, setIsDragging] = useState(false)
+  const [measurementPrompt, setMeasurementPrompt] = useState<VoiceMeasurementPickerPrompt | null>(null)
   
   const hasGreeted = useRef(false)
   const instructionTimer = useRef<NodeJS.Timeout | null>(null)
   const autoCloseTimer = useRef<NodeJS.Timeout | null>(null)
   const dragControls = useDragControls()
   const containerRef = useRef<HTMLDivElement>(null)
+  const measurementPromptRef = useRef<VoiceMeasurementPickerPrompt | null>(null)
 
   const instructions = [
     {
@@ -66,41 +72,37 @@ export function FloatingVoiceAssistant({ shopId }: FloatingVoiceAssistantProps) 
     onAutoSend: handleVoiceInput,
   })
 
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  // ✅ FIX OPTION 1: Drop the stale condition (simplest)
-// const { speak } = useVoiceSynthesis(true, () => {
-//   setTimeout(() => {
-//     setState('listening')
-//     setResponse('')
-//   }, 500)
-// })
-// ✅ FIX OPTION 2: Use a ref to always read current state
-const stateRef = useRef<AssistantState>('idle')
+  const stateRef = useRef<AssistantState>('idle')
 
-// Keep ref in sync
-useEffect(() => {
-  stateRef.current = state
-}, [state])
+  // Keep refs in sync
+  useEffect(() => {
+    stateRef.current = state
+  }, [state])
 
-const { speak } = useVoiceSynthesis(true, () => {
-  setTimeout(() => {
-    if (stateRef.current === 'responding') {
-      setState('listening')
-      setResponse('')
-    }
-  }, 500)
-})
+  useEffect(() => {
+    measurementPromptRef.current = measurementPrompt
+  }, [measurementPrompt])
+
+  const { speak } = useVoiceSynthesis(true, () => {
+    setTimeout(() => {
+      if (stateRef.current === 'responding') {
+        setState(measurementPromptRef.current ? 'idle' : 'listening')
+        setResponse('')
+      }
+    }, 500)
+  })
 
   // Handle voice input received
-  async function handleVoiceInput(text: string) {
-    if (!text.trim()) return
-    
-    // CRITICAL: Stop listening while processing to prevent AI response being recorded
+  async function sendVoiceCommand(rawText: string, displayText?: string) {
+    const text = rawText.trim()
+    if (!text) return
+
+    // Stop listening while processing so assistant speech is not re-captured
     stopListening()
     clearSilenceTimer()
-    
+
     setState('processing')
-    setTranscript(text)
+    setTranscript(displayText ?? text)
 
     try {
       const res = await fetch('/api/voice/process', {
@@ -108,19 +110,43 @@ const { speak } = useVoiceSynthesis(true, () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ message: text, shopId }),
       })
-      
-      const data = await res.json()
+
+      const data = (await res.json()) as VoiceProcessResponse
       const reply = data?.reply || "I didn't catch that. Could you try again?"
-      
+
+      if (data?.prompt?.type === 'measurement_standard_picker') {
+        setMeasurementPrompt(data.prompt)
+      } else {
+        setMeasurementPrompt(null)
+      }
+
       setResponse(reply)
       setState('responding')
       speak(reply)
-    } catch (error) {
+    } catch {
+      setMeasurementPrompt(null)
       const errorReply = "I'm having trouble connecting. Please try again."
       setResponse(errorReply)
       setState('responding')
       speak(errorReply)
     }
+  }
+
+  function handleVoiceInput(text: string) {
+    void sendVoiceCommand(text)
+  }
+
+  function handleMeasurementSelectionSubmit(selectedKeys: string[]) {
+    const labels = measurementPrompt?.measurements
+      .filter((measurement) => selectedKeys.includes(measurement.key))
+      .map((measurement) => measurement.label) ?? []
+    setMeasurementPrompt(null)
+
+    const internalCommand = `${PICKER_SELECTION_COMMAND} ${selectedKeys.join(', ')}`
+    const displayText = labels.length
+      ? `Selected measurements: ${labels.join(', ')}`
+      : 'Selected measurements submitted'
+    void sendVoiceCommand(internalCommand, displayText)
   }
 
   // Start the assistant flow
@@ -170,16 +196,17 @@ const { speak } = useVoiceSynthesis(true, () => {
     if (instructionTimer.current) clearInterval(instructionTimer.current)
     setIsOpen(false)
     setState('idle')
+    setMeasurementPrompt(null)
     setTranscript('')
     setResponse('')
   }, [stopListening, clearSilenceTimer])
 
   // Start listening when state changes to listening
   useEffect(() => {
-    if (state === 'listening' && !isListening && !isStarting) {
+    if (state === 'listening' && !measurementPrompt && !isListening && !isStarting) {
       startListening()
     }
-  }, [state, isListening, isStarting, startListening])
+  }, [state, measurementPrompt, isListening, isStarting, startListening])
 
   // Cleanup on unmount
   useEffect(() => {
@@ -444,6 +471,15 @@ const { speak } = useVoiceSynthesis(true, () => {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <MeasurementSelectionModal
+        open={measurementPrompt?.type === 'measurement_standard_picker'}
+        options={measurementPrompt?.measurements ?? []}
+        onOpenChange={(open) => {
+          if (!open) setMeasurementPrompt(null)
+        }}
+        onSubmit={handleMeasurementSelectionSubmit}
+      />
     </>
   )
 }

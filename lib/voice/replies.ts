@@ -17,17 +17,20 @@ export const VOICE_HELP_TEXT = `I can help with:
 During any step:
 - Say "skip" (or "skip skip", "skip it", "pass", "none") to skip optional fields
 - Say "yes", "confirm", or "ok" to save
+- For email, spoken forms work: "hassana at gmail dot com"
 - Say "no", "cancel", or "stop" to cancel`
 
 export function summarizeCustomerDraft(draft: AddCustomerDraft) {
+  const name = [draft.firstName, draft.lastName].filter(Boolean).join(' ')
   return [
-    `Name: ${draft.firstName} ${draft.lastName}`,
+    `Name: ${name || 'Not provided'}`,
     `Phone: ${draft.phone ?? 'Not provided'}`,
     `Email: ${draft.email ?? 'Not provided'}`,
     `Address: ${draft.address ?? 'Not provided'}`,
     `City: ${draft.city ?? 'Not provided'}`,
     `Country: ${draft.country ?? 'Not provided'}`,
     `Notes: ${draft.notes ?? 'Not provided'}`,
+    `Add Measurements Now: ${draft.addMeasurementsNow ? 'Yes' : 'No'}`,
   ].join('\n')
 }
 

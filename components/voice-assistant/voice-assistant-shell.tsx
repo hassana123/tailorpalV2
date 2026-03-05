@@ -7,13 +7,22 @@ import { useVoiceRecognition } from '@/components/voice-assistant/hooks/use-voic
 import { useVoiceSynthesis } from '@/components/voice-assistant/hooks/use-voice-synthesis'
 import { InputPanel } from '@/components/voice-assistant/input-panel'
 import { MessageList } from '@/components/voice-assistant/message-list'
-import { ChatMessage, VoiceAssistantProps } from '@/components/voice-assistant/types'
+import { MeasurementSelectionModal } from '@/components/voice-assistant/measurement-selection-modal'
+import {
+  ChatMessage,
+  VoiceAssistantProps,
+  VoiceMeasurementPickerPrompt,
+  VoiceProcessResponse,
+} from '@/components/voice-assistant/types'
+
+const PICKER_SELECTION_COMMAND = '@select_standard_measurements'
 
 export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const [autoSend, setAutoSend] = useState(true)
   const [isSending, setIsSending] = useState(false)
   const [messages, setMessages] = useState<ChatMessage[]>([])
   const [showHelp, setShowHelp] = useState(false)
+  const [measurementPrompt, setMeasurementPrompt] = useState<VoiceMeasurementPickerPrompt | null>(null)
 
   const messagesContainerRef = useRef<HTMLDivElement | null>(null)
   const messagesEndRef = useRef<HTMLDivElement | null>(null)
@@ -43,7 +52,7 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   })
 
   // Wrap sendCommand in useCallback to stabilize reference
-  const sendCommand = useCallback(async (rawCommand: string) => {
+  const sendCommand = useCallback(async (rawCommand: string, options?: { displayText?: string; hideUserMessage?: boolean }) => {
     const text = rawCommand.trim()
     if (!text || isSendingRef.current) return
 
@@ -56,11 +65,17 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
     pendingTranscriptRef.current = ''
     setTranscript('')
 
-    // Add user message
-    setMessages((prev) => [
-      ...prev.slice(-MAX_MESSAGES),
-      { id: crypto.randomUUID(), role: 'user', text, timestamp: new Date() }
-    ])
+    if (!options?.hideUserMessage) {
+      setMessages((prev) => [
+        ...prev.slice(-MAX_MESSAGES),
+        {
+          id: crypto.randomUUID(),
+          role: 'user',
+          text: options?.displayText?.trim() || text,
+          timestamp: new Date(),
+        },
+      ])
+    }
 
     try {
       const response = await fetch('/api/voice/process', {
@@ -69,10 +84,17 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
         body: JSON.stringify({ message: text, shopId }),
       })
 
-      const payload = await response.json()
+      const payload = (await response.json()) as VoiceProcessResponse
       const reply = typeof payload?.reply === 'string'
         ? payload.reply
         : payload?.error ?? 'I could not process that command.'
+      const prompt = payload?.prompt
+
+      if (prompt?.type === 'measurement_standard_picker') {
+        setMeasurementPrompt(prompt)
+      } else {
+        setMeasurementPrompt(null)
+      }
 
       // Add assistant message
       setMessages((prev) => [
@@ -84,6 +106,7 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
       startedSpeech = speak(reply)
     } catch (error) {
       console.error('[Voice] Send error:', error)
+      setMeasurementPrompt(null)
       const reply = 'Request failed. Please check your connection and try again.'
       setMessages((prev) => [
         ...prev,
@@ -148,9 +171,24 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
   const clearHistory = useCallback(() => {
     clearSilenceTimer()
     setMessages([])
+    setMeasurementPrompt(null)
     setTranscript('')
     pendingTranscriptRef.current = ''
   }, [clearSilenceTimer, setTranscript, pendingTranscriptRef])
+
+  const handleMeasurementSelectionSubmit = useCallback((selectedKeys: string[]) => {
+    const labels = measurementPrompt?.measurements
+      .filter((measurement) => selectedKeys.includes(measurement.key))
+      .map((measurement) => measurement.label) ?? []
+    setMeasurementPrompt(null)
+
+    const internalCommand = `${PICKER_SELECTION_COMMAND} ${selectedKeys.join(', ')}`
+    const displayText = labels.length
+      ? `Selected measurements: ${labels.join(', ')}`
+      : 'Selected measurements submitted'
+
+    void sendCommand(internalCommand, { displayText })
+  }, [measurementPrompt, sendCommand])
 
   // Compute display transcript (final + interim)
   const displayTranscript = interimTranscript
@@ -211,6 +249,15 @@ export function VoiceAssistantShell({ shopId }: VoiceAssistantProps) {
         }}
         onStartListening={startListening}
         onStopListening={stopListening}
+      />
+
+      <MeasurementSelectionModal
+        open={measurementPrompt?.type === 'measurement_standard_picker'}
+        options={measurementPrompt?.measurements ?? []}
+        onOpenChange={(open) => {
+          if (!open) setMeasurementPrompt(null)
+        }}
+        onSubmit={handleMeasurementSelectionSubmit}
       />
     </div>
   )

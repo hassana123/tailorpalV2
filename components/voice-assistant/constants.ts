@@ -17,6 +17,7 @@ During guided steps:
 - say "skip" (or "skip skip", "skip it", "pass", "none") to skip optional fields
 - say "yes", "confirm", or "ok" to confirm save
 - say "no", "cancel", or "stop" to cancel
+- for email, spoken forms work: "hassana at gmail dot com"
 - say "help" anytime for this list
 
 Controls:
