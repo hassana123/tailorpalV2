@@ -6,11 +6,11 @@ ERRORS YOU WERE GETTING:
 ========================
 
 1. Groq Model Deprecated Error:
-   "The model `mixtral-8x7b-32768` has been decommissioned and is no longer 
-    supported."
+   "The model `llama-3.1-70b-versatile` has been decommissioned and is no 
+    longer supported."
    
-   CAUSE: Used an old Groq model that was discontinued
-   FIX: Updated to `llama-3.1-70b-versatile` (latest free Groq model)
+   CAUSE: Used Groq model deprecated on January 24, 2025
+   FIX: Updated to `llama-3.3-70b-versatile` (current production Groq model)
 
 2. Null Reference Crash:
    "TypeError: Cannot read properties of null (reading 'map')"
@@ -30,8 +30,9 @@ FILES CHANGED:
 ================================================================================
 
 ✓ lib/ai/tailorpal-voice-assistant.ts
-  - Line 115: Changed model from 'mixtral-8x7b-32768' to 'llama-3.1-70b-versatile'
+  - Line 115: Changed model from 'llama-3.1-70b-versatile' to 'llama-3.3-70b-versatile'
   - Line 164: Same model change for streaming responses
+  - Reason: 3.1 model was deprecated Jan 24, 2025; 3.3 is the current replacement
 
 ✓ lib/voice/shop-awareness.ts
   - Line 92: Added null-safe operator: (recentCustomers || [])
@@ -90,11 +91,12 @@ AI MODEL EXPLANATION:
 ================================================================================
 
 YOUR CURRENT SETUP (Groq - FREE):
-- Model: LLaMA 3.1 70B (same quality as ChatGPT)
-- Cost: $0 (completely free)
+- Model: LLaMA 3.3 70B (improved version, same speed as 3.1)
+- Quality: Exceeds ChatGPT for most tasks (per Groq benchmarks)
+- Cost: $0 (completely free, no credit card needed)
 - Speed: <1 second per response
-- Rate: 2,500+ requests/day
-- Status: ✓ Ready to use, no setup needed
+- Rate: 2,500+ requests/day (plenty for a tailor shop)
+- Status: ✓ Production-ready, no setup needed
 
 OPTIONAL ADD-ON (OpenAI - Pay as you go):
 - Cost: $0.15 per 1M tokens (~$1-5/month for typical shop)
