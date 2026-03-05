@@ -91,7 +91,7 @@ export function detectSmartIntent(message: string): IntentDetectionResult {
   }
 
   // 6. Detect specific shop intents only if it's a command or clear action
-  let specificIntent = detectSpecificShopIntent(cleaned, isCommand)
+  let specificIntent = detectSpecificShopIntent(cleaned)
 
   if (isQuestion && !isCommand) {
     // If it's a question without a clear command, ask for clarification
@@ -123,8 +123,8 @@ export function detectSmartIntent(message: string): IntentDetectionResult {
     shouldExecuteFlow: false,
   }
 }
-
-function detectSpecificShopIntent(cleaned: string, isCommand: boolean): VoiceIntent | null {
+//isCommand: boolean
+function detectSpecificShopIntent(cleaned: string): VoiceIntent | null {
   // Only detect specific intents if it looks like a command
   const intentPatterns = [
     {

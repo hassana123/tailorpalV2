@@ -6,7 +6,7 @@
 
 import { ConversationContext } from '@/lib/voice/conversation-context'
 import { ShopContextData, formatShopContextForPrompt } from '@/lib/voice/shop-awareness'
-import { VoiceSupabase } from '@/lib/voice/db-types'
+//import { VoiceSupabase } from '@/lib/voice/db-types'
 
 export interface AssistantOptions {
   conversationContext: ConversationContext

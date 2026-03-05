@@ -14,7 +14,9 @@ export type VoiceIntent =
   | 'list_orders'
   | 'pending_orders'
   | 'shop_stats'
-  | 'help'
+  | 'help_request'
+  | 'knowledge_question'
+  | 'greeting'
   | 'unknown'
 
 export type VoiceFlow =

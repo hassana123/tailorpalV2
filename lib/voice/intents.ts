@@ -58,7 +58,7 @@ const INTENT_RULES: Array<{ intent: VoiceIntent; pattern: RegExp }> = [
     pattern: /\b(shop\s+stats?|statistics|summary|overview|analytics|report)\b|\bhow\s+is\s+(the\s+)?shop\b|\bshop\s+performance\b|\bdashboard\b|\bhow\s+are\s+we\s+doing\b|\bshop\s+information\b|\bquick\s+stats?\b|\bnumbers\b/i 
   },
   // Help
-  { intent: 'help', pattern: /^\s*help\b|\bhelp\s+me\b|\bwhat\s+can\s+i\s+say\b|\bcommands\b/i },
+  { intent: 'help_request', pattern: /^\s*help\b|\bhelp\s+me\b|\bwhat\s+can\s+i\s+say\b|\bcommands\b/i },
 ]
 
 const INTENT_TO_FLOW: Partial<Record<VoiceIntent, VoiceFlow>> = {

@@ -6,7 +6,7 @@ import { summarizeCustomerDraft } from '@/lib/voice/replies'
 import { clearVoiceSession, getVoiceSession, setVoiceSession } from '@/lib/voice/session-store'
 import { VoiceReply } from '@/lib/voice/types'
 import { detectCorrectionIntent, isAffirmation } from '@/lib/voice/correction-system'
-import { handleFlowCorrection, isConfirmingCorrection } from '@/lib/voice/flows/correction-handler'
+import { handleFlowCorrection } from '@/lib/voice/flows/correction-handler'
 
 const STANDARD_OPTIONS = STANDARD_MEASUREMENTS.map((measurement) => ({
   key: measurement.key,
@@ -98,7 +98,7 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
     if (!name) return { reply: 'Please say at least the first name. Example: "Jane" or "Jane Doe".' }
     draft.firstName = name.firstName
     draft.lastName = name.lastName ?? null
-    session.step = name.lastName ? 'confirm_name' : 'ask_last_name'
+    session.step = name.lastName ? 'confirm' : 'ask_last_name'
     setVoiceSession(context.sessionKey, session)
     if (!name.lastName) {
       return { reply: `First name: ${name.firstName}. What is the last name? Say "skip" if unavailable.` }
@@ -109,7 +109,7 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
     return { reply: `Got ${name.firstName} ${name.lastName}. What is the email address? Say "skip" if unavailable.` }
   }
 
-  if (session.step === 'confirm_name') {
+  if (session.step === 'confirm') {
     if (isAffirmation(text)) {
       session.step = 'ask_last_name'
       setVoiceSession(context.sessionKey, session)
@@ -204,7 +204,7 @@ export async function continueAddCustomerFlow(context: VoiceFlowContext): Promis
     }
   }
 
-  if (session.step === 'confirm') {
+  if (session.step === "none") {
     if (isNo(text)) {
       clearVoiceSession(context.sessionKey)
       return { reply: 'Customer creation cancelled.' }

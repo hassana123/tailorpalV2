@@ -17,11 +17,10 @@ export interface CorrectionDetection {
  */
 export function detectCorrectionIntent(message: string): CorrectionDetection {
   const lowerMessage = message.toLowerCase().trim()
-  const words = lowerMessage.split(/\s+/)
+  //const words = lowerMessage.split(/\s+/)
 
   // Generic rejection patterns (user says "no", "wrong", "incorrect", etc)
   const genericRejectionPatterns = [
-    /\b(no|nope|wrong|incorrect|not correct|nope|that's wrong|thats wrong|not right|error)\b/i,
     /\b(actually|wait|hold on|correction|let me correct|correction please)\b/i,
   ]
 
