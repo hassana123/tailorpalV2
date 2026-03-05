@@ -28,6 +28,7 @@ export type VoiceFlow =
 
 export type PendingAction =
   | 'none'
+  | 'confirm_name'
   | 'ask_name'
   | 'ask_last_name'
   | 'ask_phone'
