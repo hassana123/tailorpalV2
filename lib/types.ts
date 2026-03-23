@@ -90,6 +90,7 @@ export interface CreateMeasurementRequest {
   customerId: string
   standardMeasurements?: Record<string, number>
   customMeasurements?: Record<string, number>
+  measurementUnit?: 'inches' | 'cm'
   notes?: string
 }
 
