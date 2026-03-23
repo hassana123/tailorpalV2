@@ -4,6 +4,7 @@ import { SonnerProvider } from '@/components/providers/SonnerProvider'
 import { Suspense } from 'react'
 import ClientBoundary from './ClientBoundary'
 import LoadingSpinner from '@/components/LoadingSpinner'
+import { PWAWrapper } from '@/components/pwa/PWAWrapper'
 export const metadata: Metadata = {
   title: 'TailorPal — Fashion Shop Management & Marketplace',
   description:
@@ -14,11 +15,22 @@ export const metadata: Metadata = {
     description: 'Manage your fashion business with AI assistance',
     type: 'website',
   },
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'TailorPal',
+  },
+  icons: {
+    icon: '/favicon.ico',
+    apple: '/icons/icon-192x192.png',
+  },
 }
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
+  themeColor: '#9333ea',
 }
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -44,8 +56,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   <Suspense fallback={<LoadingSpinner />}>
     <ClientBoundary>{children}</ClientBoundary>
   </Suspense>
-  <SonnerProvider />
-</body>
+        <SonnerProvider />
+        <PWAWrapper />
+      </body>
     </html>
   )
 }
