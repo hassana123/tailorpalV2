@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Download, X, IPhone } from 'lucide-react'
+import { Download, X, Phone } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
 interface PWAInstallPromptProps {
@@ -52,7 +52,7 @@ export function PWAInstallPrompt({ className }: PWAInstallPromptProps) {
 
         <div className="flex items-start gap-4">
           <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
-            <IPhone className="w-6 h-6" />
+            <Phone className="w-6 h-6" />
           </div>
           
           <div className="flex-1">
