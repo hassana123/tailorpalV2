@@ -4,19 +4,42 @@ import { CreateShopRequest } from '@/lib/types'
 import { NextRequest, NextResponse } from 'next/server'
 import { z } from 'zod'
 
+const optionalTrimmedString = z.preprocess((value) => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  return trimmed === '' ? undefined : trimmed
+}, z.string().optional())
+
+const optionalUrlString = z.preprocess((value) => {
+  if (typeof value !== 'string') return value
+  const trimmed = value.trim()
+  return trimmed === '' ? undefined : trimmed
+}, z.string().url().optional())
+
+const optionalNumber = z.preprocess((value) => {
+  if (value === null || value === undefined || value === '') return undefined
+  if (typeof value === 'string') {
+    const trimmed = value.trim()
+    if (trimmed === '') return undefined
+    const parsed = Number(trimmed)
+    return Number.isFinite(parsed) ? parsed : value
+  }
+  return value
+}, z.number().optional())
+
 const payloadSchema = z.object({
-  name: z.string().min(2),
-  email: z.string().email(),
-  phone: z.string().optional(),
-  address: z.string().optional(),
-  city: z.string().optional(),
-  state: z.string().optional(),
-  country: z.string().optional(),
-  description: z.string().optional(),
-  logoUrl: z.string().url().optional(),
-  bannerUrl: z.string().url().optional(),
-  latitude: z.number().min(-90).max(90).optional(),
-  longitude: z.number().min(-180).max(180).optional(),
+  name: z.string().trim().min(2),
+  email: z.string().trim().email(),
+  phone: optionalTrimmedString,
+  address: optionalTrimmedString,
+  city: optionalTrimmedString,
+  state: optionalTrimmedString,
+  country: optionalTrimmedString,
+  description: optionalTrimmedString,
+  logoUrl: optionalUrlString,
+  bannerUrl: optionalUrlString,
+  latitude: optionalNumber.pipe(z.number().min(-90).max(90).optional()),
+  longitude: optionalNumber.pipe(z.number().min(-180).max(180).optional()),
 })
 
 type DbErrorLike = {
