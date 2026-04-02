@@ -50,7 +50,7 @@ interface Measurement {
 interface CustomerOption {
   id: string
   first_name: string
-  last_name: string
+  last_name: string | null
 }
 
 type EditableMeasurement = {
@@ -65,6 +65,33 @@ type EditableMeasurement = {
 const MEASUREMENT_CATEGORIES = Array.from(
   new Set(STANDARD_MEASUREMENTS.map((m) => m.category))
 )
+
+type QuickCustomerForm = {
+  firstName: string
+  lastName: string
+  email: string
+  phone: string
+}
+
+const initialQuickCustomerForm: QuickCustomerForm = {
+  firstName: '',
+  lastName: '',
+  email: '',
+  phone: '',
+}
+
+const normalizeOptionalString = (value: string) => {
+  const trimmed = value.trim()
+  return trimmed ? trimmed : undefined
+}
+
+const sortCustomerOptions = (items: CustomerOption[]) =>
+  [...items].sort((a, b) =>
+    `${a.first_name} ${a.last_name ?? ''}`.localeCompare(`${b.first_name} ${b.last_name ?? ''}`)
+  )
+
+const formatCustomerName = (customer: Pick<CustomerOption, 'first_name' | 'last_name'>) =>
+  [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
 
 // ─── Stat Card ────────────────────────────────────────────────────────────────
 
@@ -194,8 +221,22 @@ export function MeasurementsPageContent() {
   const [customMeasurements, setCustomMeasurements] = useState<{ name: string; value: string }[]>([])
   const [newCustomName, setNewCustomName] = useState('')
   const [notes, setNotes] = useState('')
+  const [showQuickCustomerForm, setShowQuickCustomerForm] = useState(false)
+  const [quickCustomerForm, setQuickCustomerForm] = useState<QuickCustomerForm>(initialQuickCustomerForm)
+  const [isCreatingCustomer, setIsCreatingCustomer] = useState(false)
 
   useEffect(() => { fetchData() }, [shopId])
+  useEffect(() => {
+    if (!addModalOpen) {
+      setShowQuickCustomerForm(false)
+      setQuickCustomerForm(initialQuickCustomerForm)
+      return
+    }
+
+    if (customers.length === 0) {
+      setShowQuickCustomerForm(true)
+    }
+  }, [addModalOpen, customers.length])
 
   const fetchData = async () => {
     try {
@@ -225,7 +266,7 @@ export function MeasurementsPageContent() {
         return { ...measurement, customers: customer } as Measurement
       })
       setMeasurements(normalized)
-      setCustomers((cRes.data ?? []) as CustomerOption[])
+      setCustomers(sortCustomerOptions((cRes.data ?? []) as CustomerOption[]))
     } catch {
       toast.error('Failed to load measurements')
     } finally {
@@ -259,6 +300,70 @@ export function MeasurementsPageContent() {
     setCustomMeasurements([])
     setNewCustomName('')
     setNotes('')
+    setShowQuickCustomerForm(false)
+    setQuickCustomerForm(initialQuickCustomerForm)
+  }
+
+  const handleQuickCustomerKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
+    if (event.key === 'Enter') {
+      event.preventDefault()
+      void handleQuickAddCustomer()
+    }
+  }
+
+  const handleQuickAddCustomer = async () => {
+    const firstName = quickCustomerForm.firstName.trim()
+
+    if (!firstName) {
+      toast.error('First name is required')
+      return
+    }
+
+    try {
+      setIsCreatingCustomer(true)
+      const response = await fetch('/api/customers', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          shopId,
+          firstName,
+          lastName: normalizeOptionalString(quickCustomerForm.lastName),
+          email: normalizeOptionalString(quickCustomerForm.email),
+          phone: normalizeOptionalString(quickCustomerForm.phone),
+        }),
+      })
+
+      const payload = await response.json().catch(() => null)
+      if (!response.ok) {
+        throw new Error(payload?.error || 'Failed to add customer')
+      }
+
+      const createdCustomer = payload?.customer as
+        | { id: string; first_name: string; last_name: string | null }
+        | undefined
+
+      if (!createdCustomer) {
+        throw new Error('Customer created but no record was returned')
+      }
+
+      const nextCustomer: CustomerOption = {
+        id: createdCustomer.id,
+        first_name: createdCustomer.first_name,
+        last_name: createdCustomer.last_name ?? null,
+      }
+
+      setCustomers((prev) =>
+        sortCustomerOptions([...prev.filter((item) => item.id !== nextCustomer.id), nextCustomer])
+      )
+      setSelectedCustomerId(nextCustomer.id)
+      setShowQuickCustomerForm(false)
+      setQuickCustomerForm(initialQuickCustomerForm)
+      toast.success(`${formatCustomerName(nextCustomer)} added. Continue with measurements.`)
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Failed to add customer')
+    } finally {
+      setIsCreatingCustomer(false)
+    }
   }
 
   const handleSave = async () => {
@@ -478,6 +583,8 @@ export function MeasurementsPageContent() {
   const completedCount = measurements.filter((m) => m.status === 'completed').length
   const pendingCount   = measurements.filter((m) => m.status === 'pending').length
   const uniqueCustomers = new Set(measurements.map((m) => m.customer_id)).size
+  const hasCustomers = customers.length > 0
+  const shouldShowQuickCustomerForm = showQuickCustomerForm || !hasCustomers
 
   return (
     <div className="p-4 lg:p-6 xl:p-8 space-y-6">
@@ -527,7 +634,7 @@ export function MeasurementsPageContent() {
         open={addModalOpen}
         onOpenChange={(open) => { setAddModalOpen(open); if (!open) resetForm() }}
         title="Record Measurement"
-        description="Select a customer, pick measurements from the standard list, and optionally add custom ones."
+        description="Select a customer, or quickly add one here, then record standard or custom measurements."
         onSubmit={handleSave}
         isSubmitting={isSubmitting}
         submitLabel="Save Measurements"
@@ -537,20 +644,136 @@ export function MeasurementsPageContent() {
 
           {/* Customer select */}
           <div className="space-y-2">
-            <Label>Customer *</Label>
+            <div className="flex items-center justify-between gap-3">
+              <Label>Customer *</Label>
+              {hasCustomers && !shouldShowQuickCustomerForm && (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-auto px-2 py-1 text-xs text-brand-gold hover:text-brand-ink"
+                  onClick={() => setShowQuickCustomerForm(true)}
+                >
+                  <Plus className="h-3 w-3 mr-1" />
+                  Add customer here
+                </Button>
+              )}
+            </div>
             <select
               className="w-full h-10 px-3 rounded-xl border border-brand-border bg-white text-sm text-brand-ink focus:outline-none focus:ring-2 focus:ring-brand-gold/30 focus:border-brand-gold/55 transition-all appearance-none"
+              disabled={!hasCustomers}
               value={selectedCustomerId}
               onChange={(e) => setSelectedCustomerId(e.target.value)}
             >
               <option value="">Select customer…</option>
               {customers.map((c) => (
                 <option key={c.id} value={c.id}>
-                  {c.first_name} {c.last_name}
+                  {formatCustomerName(c)}
                 </option>
               ))}
             </select>
+            {!hasCustomers && (
+              <p className="text-xs text-brand-stone">
+                Add your first customer below, then continue recording measurements.
+              </p>
+            )}
+            {hasCustomers && !shouldShowQuickCustomerForm && (
+              <p className="text-xs text-brand-stone">
+                Need someone new? Add a customer without leaving this measurement form.
+              </p>
+            )}
           </div>
+
+          {shouldShowQuickCustomerForm && (
+            <div className="rounded-2xl border border-brand-border bg-brand-cream/30 p-4 space-y-4">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <p className="text-sm font-semibold text-brand-ink">Quick Add Customer</p>
+                  <p className="text-xs text-brand-stone">
+                    Only first name is required. You can complete the rest later from Customers.
+                  </p>
+                </div>
+                {hasCustomers && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto px-2 py-1 text-xs"
+                    onClick={() => {
+                      setShowQuickCustomerForm(false)
+                      setQuickCustomerForm(initialQuickCustomerForm)
+                    }}
+                    disabled={isCreatingCustomer}
+                  >
+                    Cancel
+                  </Button>
+                )}
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-customer-first-name">First Name *</Label>
+                  <Input
+                    id="quick-customer-first-name"
+                    value={quickCustomerForm.firstName}
+                    onChange={(event) =>
+                      setQuickCustomerForm((prev) => ({ ...prev, firstName: event.target.value }))
+                    }
+                    onKeyDown={handleQuickCustomerKeyDown}
+                    placeholder="Jane"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-customer-last-name">Last Name</Label>
+                  <Input
+                    id="quick-customer-last-name"
+                    value={quickCustomerForm.lastName}
+                    onChange={(event) =>
+                      setQuickCustomerForm((prev) => ({ ...prev, lastName: event.target.value }))
+                    }
+                    onKeyDown={handleQuickCustomerKeyDown}
+                    placeholder="Doe"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-customer-email">Email</Label>
+                  <Input
+                    id="quick-customer-email"
+                    type="email"
+                    value={quickCustomerForm.email}
+                    onChange={(event) =>
+                      setQuickCustomerForm((prev) => ({ ...prev, email: event.target.value }))
+                    }
+                    onKeyDown={handleQuickCustomerKeyDown}
+                    placeholder="jane@example.com"
+                  />
+                </div>
+                <div className="space-y-1.5">
+                  <Label htmlFor="quick-customer-phone">Phone</Label>
+                  <Input
+                    id="quick-customer-phone"
+                    value={quickCustomerForm.phone}
+                    onChange={(event) =>
+                      setQuickCustomerForm((prev) => ({ ...prev, phone: event.target.value }))
+                    }
+                    onKeyDown={handleQuickCustomerKeyDown}
+                    placeholder="+1 234 567 8900"
+                  />
+                </div>
+              </div>
+
+              <div className="flex justify-end">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleQuickAddCustomer}
+                  disabled={isCreatingCustomer}
+                >
+                  {isCreatingCustomer ? 'Saving Customer...' : 'Save Customer'}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Picker */}
           <MeasurementPicker

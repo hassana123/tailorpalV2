@@ -21,6 +21,11 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 
+const normalizeOptionalString = (value: string) => {
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+};
+
 export default function ShopSetupPage() {
   const [step, setStep] = useState(1);
   const [supabase] = useState(() => createClient());
@@ -82,24 +87,79 @@ export default function ShopSetupPage() {
     }));
   };
 
+  const goToNextStep = () => {
+    if (step === 1) {
+      if (!formData.name.trim()) {
+        toast.error("Shop name is required");
+        return;
+      }
+
+      if (!formData.email.trim()) {
+        toast.error("Business email is required");
+        return;
+      }
+    }
+
+    setStep((s) => s + 1);
+  };
+
   const handleSubmit = async () => {
+    const trimmedName = formData.name.trim();
+    const trimmedEmail = formData.email.trim();
+
+    if (!trimmedName) {
+      toast.error("Shop name is required");
+      return;
+    }
+
+    if (!trimmedEmail) {
+      toast.error("Business email is required");
+      return;
+    }
+
     setIsLoading(true);
     try {
+      const payload = {
+        name: trimmedName,
+        email: trimmedEmail,
+        phone: normalizeOptionalString(formData.phone),
+        address: normalizeOptionalString(formData.address),
+        city: normalizeOptionalString(formData.city),
+        state: normalizeOptionalString(formData.state),
+        country: normalizeOptionalString(formData.country),
+        description: normalizeOptionalString(formData.description),
+        logoUrl: normalizeOptionalString(formData.logoUrl),
+        bannerUrl: normalizeOptionalString(formData.bannerUrl),
+        ...(typeof formData.latitude === "number"
+          ? { latitude: formData.latitude }
+          : {}),
+        ...(typeof formData.longitude === "number"
+          ? { longitude: formData.longitude }
+          : {}),
+      };
+
       const response = await fetch("/api/shops", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify(payload),
       });
-      if (!response.ok) throw new Error("Failed to create shop");
-      const { shop } = await response.json();
+      const payloadResponse = await response.json().catch(() => null);
+      if (!response.ok) {
+        throw new Error(payloadResponse?.error || "Failed to create shop");
+      }
+      const { shop } = payloadResponse;
       toast.success("Your fashion empire starts now!");
       router.push(`/dashboard/shop/${shop.id}`);
     } catch (err) {
-      toast.error("Something went wrong");
+      toast.error(err instanceof Error ? err.message : "Something went wrong");
     } finally {
       setIsLoading(false);
     }
   };
+
+  const hasOptionalBranding = Boolean(
+    formData.logoUrl || formData.bannerUrl || formData.description.trim(),
+  );
 
   return (
     <div className="min-h-screen bg-brand-cream noise-overlay flex flex-col items-center py-6 px-4">
@@ -172,6 +232,8 @@ export default function ShopSetupPage() {
                       state: "",
                       city: "",
                       address: "",
+                      latitude: null,
+                      longitude: null,
                     }))
                   }
                   onStateChange={(v) =>
@@ -180,10 +242,18 @@ export default function ShopSetupPage() {
                       state: v,
                       city: "",
                       address: "",
+                      latitude: null,
+                      longitude: null,
                     }))
                   }
                   onCityChange={(v) =>
-                    setFormData((p) => ({ ...p, city: v, address: "" }))
+                    setFormData((p) => ({
+                      ...p,
+                      city: v,
+                      address: "",
+                      latitude: null,
+                      longitude: null,
+                    }))
                   }
                 />
                 <div className="space-y-2">
@@ -206,9 +276,13 @@ export default function ShopSetupPage() {
           {/* STEP 2: VISUALS */}
           {step === 2 && (
             <div className="space-y-8 animate-fade-in">
+              <div className="rounded-2xl border border-brand-gold/20 bg-brand-gold/5 px-4 py-3 text-sm text-brand-charcoal">
+                Logo, banner, and shop story are optional. You can skip this
+                step now and update everything later from Shop Settings.
+              </div>
               <div className="grid md:grid-cols-3 gap-8 items-start">
                 <ImageUploadField
-                  label="Shop Logo"
+                  label="Shop Logo (Optional)"
                   value={formData.logoUrl}
                   isUploading={logoUploading}
                   onUpload={(file) => handleImageUpload(file, "logoUrl")}
@@ -216,7 +290,7 @@ export default function ShopSetupPage() {
                 />
                 <div className="md:col-span-2">
                   <ImageUploadField
-                    label="Banner Image"
+                    label="Banner Image (Optional)"
                     value={formData.bannerUrl}
                     aspectRatio="video"
                     isUploading={bannerUploading}
@@ -226,13 +300,13 @@ export default function ShopSetupPage() {
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="description">Shop Story</Label>
+                <Label htmlFor="description">Shop Story (Optional)</Label>
                 <Textarea
                   id="description"
                   name="description"
                   value={formData.description}
                   onChange={handleChange}
-                  placeholder="Describe your aesthetic..."
+                  placeholder="Describe your aesthetic, or leave this for later."
                   rows={5}
                   className="resize-none"
                 />
@@ -256,10 +330,11 @@ export default function ShopSetupPage() {
 
             {step < 3 ? (
               <Button
-                onClick={() => setStep((s) => s + 1)}
+                onClick={goToNextStep}
                 className="bg-brand-ink hover:bg-brand-charcoal text-white px-8 rounded-full h-12"
               >
-                Continue <ChevronRight className="ml-2 h-4 w-4" />
+                {step === 2 && !hasOptionalBranding ? "Skip for now" : "Continue"}{" "}
+                <ChevronRight className="ml-2 h-4 w-4" />
               </Button>
             ) : (
               <Button
