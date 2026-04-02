@@ -30,3 +30,8 @@ commit;
 -- 5) supabase/migrations/202603010003_inventory_and_staff_permissions.sql
 -- 6) supabase/migrations/202603010004_fix_profiles_permissions.sql
 -- 7) supabase/migrations/202603010005_fix_shops_permissions.sql
+-- 8) supabase/migrations/202603040001_fix_dashboard_access_and_catalog_requests.sql
+-- 9) supabase/migrations/202603040002_fix_catalog_order_request_rls.sql
+-- 10) supabase/migrations/202603040003_catalog_request_order_workflow.sql
+-- 11) supabase/migrations/202603050001_measurement_unit_and_dynamic_records.sql
+-- 12) supabase/migrations/202604020001_fix_shop_optional_fields_schema.sql

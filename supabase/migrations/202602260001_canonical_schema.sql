@@ -79,6 +79,8 @@ create table if not exists public.shops (
   city text,
   state text,
   country text,
+  latitude double precision,
+  longitude double precision,
   logo_url text,
   banner_url text,
   slug text unique not null,
@@ -98,6 +100,8 @@ alter table public.shops add column if not exists address text;
 alter table public.shops add column if not exists city text;
 alter table public.shops add column if not exists state text;
 alter table public.shops add column if not exists country text;
+alter table public.shops add column if not exists latitude double precision;
+alter table public.shops add column if not exists longitude double precision;
 alter table public.shops add column if not exists logo_url text;
 alter table public.shops add column if not exists banner_url text;
 alter table public.shops add column if not exists slug text;
@@ -250,7 +254,7 @@ create table if not exists public.customers (
   id uuid primary key default gen_random_uuid(),
   shop_id uuid not null references public.shops(id) on delete cascade,
   first_name text not null,
-  last_name text not null,
+  last_name text,
   email text,
   phone text,
   address text,
@@ -268,6 +272,7 @@ alter table public.customers add column if not exists city text;
 alter table public.customers add column if not exists country text;
 alter table public.customers add column if not exists notes text;
 alter table public.customers add column if not exists created_by uuid references auth.users(id) on delete cascade;
+alter table public.customers alter column last_name drop not null;
 
 do $$
 begin
