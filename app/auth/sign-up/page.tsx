@@ -204,17 +204,17 @@ export default function SignUpPage() {
           </PrimaryButton>
         </div>
 
-        <p className="text-xs text-center text-gray-400">
+        <p className="text-xs text-center text-brand-stone">
           By signing up, you agree to our{' '}
-          <Link href="#" className="text-violet-600 hover:underline font-semibold">Terms of Service</Link>
+          <Link href="#" className="text-brand-gold hover:underline font-semibold">Terms of Service</Link>
           {' '}and{' '}
-          <Link href="#" className="text-violet-600 hover:underline font-semibold">Privacy Policy</Link>
+          <Link href="#" className="text-brand-gold hover:underline font-semibold">Privacy Policy</Link>
         </p>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-brand-stone">
         Already have an account?{' '}
-        <Link href="/auth/login" className="font-bold text-violet-600 hover:text-violet-800 transition-colors">
+        <Link href="/auth/login" className="font-bold text-brand-gold hover:text-[#c06d22] transition-colors">
           Sign in
         </Link>
       </p>

@@ -4,11 +4,11 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
+import { formatCompactNaira, formatNaira, formatRelativeDate } from '@/lib/utils/format'
 import {
   Users,
   ShoppingCart,
   Package,
-  Boxes,
   UserCheck,
   TrendingUp,
   Mic2,
@@ -19,6 +19,10 @@ import {
   AlertCircle,
   BarChart3,
   Settings,
+  Sparkles,
+  Calendar,
+  Plus,
+  Workflow,
 } from 'lucide-react'
 
 interface Shop {
@@ -29,10 +33,11 @@ interface Shop {
 }
 
 interface DashboardStats {
-  customersCount:   number
-  ordersCount:      number
+  customersCount: number
+  ordersCount: number
   activeOrdersCount: number
-  staffCount:       number
+  staffCount: number
+  totalRevenue: number
 }
 
 interface QuickAccess {
@@ -45,6 +50,16 @@ interface QuickAccess {
   settings: boolean
 }
 
+interface RecentOrder {
+  id: string
+  order_number: string
+  design_description: string | null
+  total_price: number | null
+  status: string
+  estimated_delivery_date: string | null
+  customers: { first_name: string; last_name: string | null } | null
+}
+
 const NO_ACCESS: QuickAccess = {
   customers: false,
   orders: false,
@@ -55,120 +70,50 @@ const NO_ACCESS: QuickAccess = {
   settings: false,
 }
 
-// ─── Stat Card (top row — matches reference "overview cards") ──────────────
+// ─── Stat Card ─────────────────────────────────────────────────────────────
 function StatCard({
   label,
   value,
+  subtext,
   Icon,
-  bullets,
   iconColor,
 }: {
   label: string
   value: number | string
+  subtext?: string
   Icon: React.ElementType
-  bullets?: { color: string; text: string }[]
   iconColor: string
 }) {
   return (
-    <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-5 flex flex-col gap-3 hover:shadow-card-hover transition-all duration-200">
+    <div className="bg-white rounded-3xl border border-brand-border p-5 flex flex-col justify-between hover:shadow-card-hover transition-all duration-200">
       <div className="flex items-start justify-between">
-        <div className="min-w-0">
-          <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1 lg:mb-2">{label}</p>
-          <p className="font-display text-2xl lg:text-4xl text-brand-ink truncate">{value}</p>
-        </div>
-        <div className={`w-9 h-9 lg:w-10 lg:h-10 rounded-xl flex items-center justify-center flex-shrink-0 ${iconColor}`}>
-          <Icon size={16} className="lg:w-[18px] lg:h-[18px]" />
+        <span className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em]">{label}</span>
+        <div className={`w-10 h-10 rounded-2xl flex items-center justify-center flex-shrink-0 ${iconColor}`}>
+          <Icon size={18} />
         </div>
       </div>
-      {bullets && (
-        <div className="flex flex-wrap gap-x-3 lg:gap-x-4 gap-y-1">
-          {bullets.map((b) => (
-            <span key={b.text} className="flex items-center gap-1.5 text-[10px] lg:text-xs text-brand-stone">
-              <span className={`w-1.5 h-1.5 rounded-full ${b.color}`} />
-              {b.text}
-            </span>
-          ))}
-        </div>
-      )}
+      <div className="mt-3">
+        <p className="font-display text-2xl lg:text-3xl text-brand-ink truncate">{value}</p>
+        {subtext && <p className="text-xs text-brand-stone mt-1">{subtext}</p>}
+      </div>
     </div>
   )
 }
 
-// ─── Service row item ─────────────────────────────────────────────────────
-function ServiceItem({
-  Icon,
-  label,
-  total,
-  rate,
-  rateLabel,
-  rateColor,
-  href,
-}: {
-  Icon: React.ElementType
-  label: string
-  total: number
-  rate: string
-  rateLabel: string
-  rateColor: string
-  href: string
-}) {
-  return (
-    <Link
-      href={href}
-      className="flex-1 flex items-center gap-3 lg:gap-4 px-4 lg:px-5 py-3 lg:py-3.5 hover:bg-brand-cream transition-colors group min-w-0"
-    >
-      <div className="w-7 h-7 lg:w-8 lg:h-8 rounded-lg bg-brand-cream border border-brand-border flex items-center justify-center text-brand-stone group-hover:bg-brand-ink group-hover:text-white group-hover:border-brand-ink transition-all flex-shrink-0">
-        <Icon size={14} className="lg:w-[15px] lg:h-[15px]" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className="text-xs lg:text-sm font-semibold text-brand-ink truncate">{label}</p>
-        <p className="text-[10px] lg:text-xs text-brand-stone">{total} Total</p>
-      </div>
-      <div className="text-right flex-shrink-0">
-        <p className={`text-xs lg:text-sm font-bold ${rateColor}`}>{rate}</p>
-        <p className="text-[9px] lg:text-[10px] text-brand-stone uppercase tracking-wider">{rateLabel}</p>
-      </div>
-    </Link>
-  )
-}
-
-// ─── Quick action button ──────────────────────────────────────────────────
-function QuickAction({
-  Icon,
-  label,
-  href,
-  variant = 'default',
-}: {
-  Icon: React.ElementType
-  label: string
-  href: string
-  variant?: 'default' | 'outline'
-}) {
-  return (
-    <Link href={href}>
-      <button
-        className={`w-full h-10 lg:h-11 px-4 lg:px-5 rounded-xl text-xs lg:text-sm font-semibold flex items-center gap-2 mb-2 transition-all duration-200 ${
-          variant === 'outline'
-            ? 'border border-brand-border text-brand-charcoal hover:bg-white hover:border-brand-ink/20 hover:text-brand-ink'
-            : 'bg-brand-ink text-white hover:bg-brand-charcoal shadow-brand'
-        }`}
-      >
-        <Icon size={14} className="lg:w-[15px] lg:h-[15px]" />
-        <span className="truncate">{label}</span>
-        <ArrowUpRight size={12} className="ml-auto opacity-60 flex-shrink-0" />
-      </button>
-    </Link>
-  )
-}
-
-// ─── Page ─────────────────────────────────────────────────────────────────
 export function ShopDashboardPageContent() {
   const params = useParams()
   const shopId = params.shopId as string
-  const [shop, setShop]     = useState<Shop | null>(null)
-  const [stats, setStats]   = useState<DashboardStats>({ customersCount: 0, ordersCount: 0, activeOrdersCount: 0, staffCount: 0 })
+  const [shop, setShop] = useState<Shop | null>(null)
+  const [stats, setStats] = useState<DashboardStats>({
+    customersCount: 0,
+    ordersCount: 0,
+    activeOrdersCount: 0,
+    staffCount: 0,
+    totalRevenue: 0,
+  })
+  const [recentOrders, setRecentOrders] = useState<RecentOrder[]>([])
   const [isLoading, setIsLoading] = useState(true)
-  const [error, setError]   = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
   const [refreshing, setRefreshing] = useState(false)
   const [quickAccess, setQuickAccess] = useState<QuickAccess>(NO_ACCESS)
 
@@ -185,7 +130,10 @@ export function ShopDashboardPageContent() {
       if (userError || !user) throw new Error('Please sign in again')
 
       const { data: shopData, error: shopError } = await supabase
-        .from('shops').select('id, name, description, owner_id').eq('id', shopId).single()
+        .from('shops')
+        .select('id, name, description, owner_id')
+        .eq('id', shopId)
+        .single()
       if (shopError || !shopData) throw new Error('Shop not found')
       setShop(shopData as Shop)
 
@@ -215,7 +163,7 @@ export function ShopDashboardPageContent() {
           const { data: permissionRows } = await supabase
             .from('shop_staff_permissions')
             .select(
-              'can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory',
+              'can_manage_customers, can_manage_orders, can_manage_measurements, can_manage_catalog, can_manage_inventory'
             )
             .in('staff_id', staffIds)
 
@@ -233,7 +181,7 @@ export function ShopDashboardPageContent() {
               catalog: false,
               inventory: false,
               measurements: false,
-            },
+            }
           )
 
           const hasOperationalAccess =
@@ -251,13 +199,40 @@ export function ShopDashboardPageContent() {
         }
       }
 
-      const [c, o, a, s] = await Promise.all([
+      // Parallel data fetching including revenue & recent orders
+      const [c, o, a, s, orderRows, recentRows] = await Promise.all([
         supabase.from('customers').select('*', { count: 'exact', head: true }).eq('shop_id', shopId),
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('shop_id', shopId),
         supabase.from('orders').select('*', { count: 'exact', head: true }).eq('shop_id', shopId).in('status', ['pending', 'in_progress']),
         supabase.from('shop_staff').select('*', { count: 'exact', head: true }).eq('shop_id', shopId).eq('status', 'active'),
+        supabase.from('orders').select('total_price').eq('shop_id', shopId),
+        supabase
+          .from('orders')
+          .select('id, order_number, design_description, total_price, status, estimated_delivery_date, customers(first_name, last_name)')
+          .eq('shop_id', shopId)
+          .order('created_at', { ascending: false })
+          .limit(4),
       ])
-      setStats({ customersCount: c.count || 0, ordersCount: o.count || 0, activeOrdersCount: a.count || 0, staffCount: s.count || 0 })
+
+      const totalRevenue = (orderRows.data ?? []).reduce(
+        (sum, row) => sum + (row.total_price || 0),
+        0
+      )
+
+      setStats({
+        customersCount: c.count || 0,
+        ordersCount: o.count || 0,
+        activeOrdersCount: a.count || 0,
+        staffCount: (s.count || 0) + 1, // Include owner
+        totalRevenue,
+      })
+
+      const normalizedRecent = ((recentRows.data ?? []) as unknown as RecentOrder[]).map((r) => {
+        const custRel = r.customers
+        const cust = Array.isArray(custRel) ? custRel[0] ?? null : custRel
+        return { ...r, customers: cust }
+      })
+      setRecentOrders(normalizedRecent)
     } catch (err) {
       setQuickAccess(NO_ACCESS)
       setError(err instanceof Error ? err.message : 'Failed to load dashboard')
@@ -267,27 +242,27 @@ export function ShopDashboardPageContent() {
     }
   }
 
-  useEffect(() => { load() }, [shopId])
+  useEffect(() => {
+    load()
+  }, [shopId])
 
-  // ── Loading ──
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[60vh]">
         <div className="text-center">
-          <Loader2 size={32} className="text-brand-stone animate-spin mx-auto mb-3" />
-          <p className="text-sm text-brand-stone">Loading dashboard…</p>
+          <Loader2 size={32} className="text-brand-gold animate-spin mx-auto mb-3" />
+          <p className="text-sm font-semibold text-brand-ink">Loading Atelier Studio...</p>
         </div>
       </div>
     )
   }
 
-  // ── Error ──
   if (error || !shop) {
     return (
       <div className="flex items-center justify-center h-full min-h-[60vh] p-6">
         <div className="text-center max-w-sm">
           <AlertCircle size={36} className="text-red-400 mx-auto mb-4" />
-          <h3 className="font-display text-xl text-brand-ink mb-2">Couldn't load dashboard</h3>
+          <h3 className="font-display text-xl text-brand-ink mb-2">Couldn&apos;t load dashboard</h3>
           <p className="text-sm text-brand-stone mb-5">{error || 'Shop not found'}</p>
           <button
             onClick={() => load()}
@@ -300,230 +275,275 @@ export function ShopDashboardPageContent() {
     )
   }
 
-  const completionRate = stats.ordersCount > 0
-    ? Math.round(((stats.ordersCount - stats.activeOrdersCount) / stats.ordersCount) * 100)
-    : 0
+  const completionRate =
+    stats.ordersCount > 0
+      ? Math.round(((stats.ordersCount - stats.activeOrdersCount) / stats.ordersCount) * 100)
+      : 0
 
   return (
-    <div className="p-4 lg:p-6 xl:p-8 space-y-4 lg:space-y-6">
-
-      {/* ── Hero banner ─────────────────────────────────────────────── */}
-      <div className="relative rounded-2xl overflow-hidden bg-brand-ink px-5 lg:px-8 py-5 lg:py-7 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        {/* Background warmth */}
-        <div className="absolute inset-0 opacity-20"
-          style={{ background: 'radial-gradient(ellipse 60% 80% at 80% 50%, rgba(217,123,43,0.35) 0%, transparent 70%)' }} />
-        <div className="absolute inset-0 opacity-[0.03]"
+    <div className="p-4 lg:p-6 xl:p-8 space-y-6">
+      {/* ── Luxury Atelier Banner ─────────────────────────────────────────────── */}
+      <div className="relative rounded-3xl overflow-hidden bg-brand-ink px-6 lg:px-9 py-6 lg:py-8 shadow-brand">
+        <div
+          className="absolute inset-0 opacity-25"
           style={{
-            backgroundImage: 'linear-gradient(rgba(255,255,255,0.5) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.5) 1px, transparent 1px)',
+            background: 'radial-gradient(ellipse 65% 85% at 85% 40%, #D97B2B 0%, transparent 60%)',
+          }}
+        />
+        <div
+          className="absolute inset-0 opacity-[0.035]"
+          style={{
+            backgroundImage:
+              'linear-gradient(rgba(255,255,255,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.4) 1px, transparent 1px)',
             backgroundSize: '48px 48px',
-          }} />
+          }}
+        />
 
-        <div className="relative min-w-0">
-          <h1 className="font-display text-xl lg:text-3xl text-white mb-1 truncate">{shop.name}</h1>
-          <p className="text-white/55 text-xs lg:text-sm">
-            {shop.description || 'Shop workspace overview and performance.'}
-          </p>
+        <div className="relative flex flex-col md:flex-row md:items-center justify-between gap-5">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-gold-light text-xs font-bold uppercase tracking-wider mb-2 border border-white/10">
+              <Sparkles size={11} />
+              <span>Bespoke Fashion Studio</span>
+            </div>
+            <h1 className="font-display text-2xl sm:text-3xl lg:text-4xl text-white truncate">
+              {shop.name}
+            </h1>
+            <p className="text-white/65 text-xs sm:text-sm mt-1 max-w-xl">
+              {shop.description || 'Welcome back. Manage your bespoke commissions, measurements, and production flow.'}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2.5 flex-shrink-0">
+            <button
+              onClick={() => load(true)}
+              disabled={refreshing}
+              className="h-10 px-4 rounded-xl bg-white/10 text-white text-xs font-semibold border border-white/15 hover:bg-white/20 transition-all flex items-center gap-2"
+            >
+              <RefreshCw size={13} className={refreshing ? 'animate-spin' : ''} />
+              <span className="hidden sm:inline">Refresh</span>
+            </button>
+            {quickAccess.settings && (
+              <Link href={`/dashboard/shop/${shopId}/settings`}>
+                <button className="h-10 px-4 rounded-xl bg-brand-gold text-white text-xs font-bold hover:bg-[#c06d22] transition-all shadow-gold flex items-center gap-2">
+                  <Settings size={13} />
+                  <span>Settings</span>
+                </button>
+              </Link>
+            )}
+          </div>
         </div>
+      </div>
 
-        <div className="relative flex items-center gap-2 lg:gap-3 flex-shrink-0">
-          <button
-            onClick={() => load(true)}
-            disabled={refreshing}
-            className="h-8 lg:h-9 px-3 lg:px-4 rounded-xl bg-white/10 text-white text-xs lg:text-sm font-medium border border-white/15 hover:bg-white/18 transition-all flex items-center gap-2"
+      {/* ── Quick Action Dock for Busy Tailors ────────────────────────────────── */}
+      <div className="bg-white rounded-3xl border border-brand-border p-4 shadow-sm">
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 sm:pb-0">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-brand-stone pl-2 pr-1 hidden md:inline">
+            Quick Actions:
+          </span>
+
+          <Link
+            href={`/dashboard/shop/${shopId}/orders`}
+            className="h-10 px-4 rounded-2xl bg-brand-ink text-white text-xs font-bold hover:bg-brand-charcoal transition-all flex items-center gap-2 shadow-sm whitespace-nowrap flex-shrink-0"
           >
-            <RefreshCw size={12} className={refreshing ? 'animate-spin' : ''} />
-            <span className="hidden sm:inline">Refresh</span>
-          </button>
-          {quickAccess.settings && (
-            <Link href={`/dashboard/shop/${shopId}/settings`}>
-              <button className="h-8 lg:h-9 px-3 lg:px-4 rounded-xl bg-brand-gold text-white text-xs lg:text-sm font-semibold hover:bg-[#c06d22] transition-all shadow-gold flex items-center gap-2">
-                <Settings size={12} />
-                <span className="hidden sm:inline">Settings</span>
-              </button>
-            </Link>
-          )}
+            <Plus size={14} className="text-brand-gold-light" />
+            <span>New Order</span>
+          </Link>
+
+          <Link
+            href={`/dashboard/shop/${shopId}/customers`}
+            className="h-10 px-4 rounded-2xl bg-brand-cream border border-brand-border text-brand-ink hover:bg-white text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+          >
+            <Users size={14} className="text-brand-gold" />
+            <span>Add Client</span>
+          </Link>
+
+          <Link
+            href={`/dashboard/shop/${shopId}/measurements`}
+            className="h-10 px-4 rounded-2xl bg-brand-cream border border-brand-border text-brand-ink hover:bg-white text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+          >
+            <Ruler size={14} className="text-brand-gold" />
+            <span>Take Measurements</span>
+          </Link>
+
+          <Link
+            href={`/dashboard/shop/${shopId}/planner`}
+            className="h-10 px-4 rounded-2xl bg-brand-cream border border-brand-border text-brand-ink hover:bg-white text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0"
+          >
+            <Workflow size={14} className="text-brand-gold" />
+            <span>Production Planner</span>
+          </Link>
+
+          <Link
+            href={`/dashboard/shop/${shopId}/voice-assistant`}
+            className="h-10 px-4 rounded-2xl bg-orange-50 border border-orange-200 text-brand-gold hover:bg-orange-100 text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0 ml-auto"
+          >
+            <Mic2 size={14} />
+            <span>Voice Assistant</span>
+          </Link>
         </div>
       </div>
 
-      {/* ── Stat cards ──────────────────────────────────────────────── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      {/* ── Stat Cards ───────────────────────────────────────────────────────── */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 lg:gap-4">
         <StatCard
-          label="Customers"
+          label="Total Clients"
           value={stats.customersCount}
+          subtext={`${stats.customersCount} recorded in studio`}
           Icon={Users}
-          iconColor="bg-sky-100 text-sky-600"
-          bullets={[
-            { color: 'bg-emerald-400', text: `${stats.customersCount} Total` },
-            { color: 'bg-brand-gold',  text: 'Active'                       },
-          ]}
+          iconColor="bg-sky-50 text-sky-600"
         />
         <StatCard
-          label="Total Orders"
-          value={stats.ordersCount}
-          Icon={ShoppingCart}
-          iconColor="bg-violet-100 text-violet-600"
-          bullets={[
-            { color: 'bg-emerald-400', text: `${stats.ordersCount - stats.activeOrdersCount} Complete` },
-            { color: 'bg-amber-400',   text: `${stats.activeOrdersCount} In Progress`                 },
-          ]}
-        />
-        <StatCard
-          label="Active Orders"
+          label="In Production"
           value={stats.activeOrdersCount}
+          subtext={`${completionRate}% completion rate`}
           Icon={Package}
-          iconColor="bg-amber-100 text-amber-600"
-          bullets={[
-            { color: 'bg-amber-400', text: `${completionRate}% Completion Rate` },
-          ]}
+          iconColor="bg-amber-50 text-amber-600"
         />
         <StatCard
-          label="Staff Members"
+          label="Order Value (₦)"
+          value={formatCompactNaira(stats.totalRevenue)}
+          subtext="Total booked revenue"
+          Icon={ShoppingCart}
+          iconColor="bg-emerald-50 text-emerald-600"
+        />
+        <StatCard
+          label="Atelier Team"
           value={stats.staffCount}
+          subtext={`${stats.staffCount} active production ${stats.staffCount === 1 ? 'maker' : 'makers'}`}
           Icon={UserCheck}
-          iconColor="bg-emerald-100 text-emerald-600"
-          bullets={[
-            { color: 'bg-emerald-400', text: `${stats.staffCount} Active` },
-          ]}
+          iconColor="bg-violet-50 text-violet-600"
         />
       </div>
 
-      {/* ── Service overview strip ───────────────────────────────────── */}
-      <div className="bg-white rounded-2xl border border-brand-border overflow-hidden">
-        <div className="divide-y divide-brand-border">
-          <div className="flex flex-col sm:flex-row divide-y sm:divide-y-0 sm:divide-x divide-brand-border">
-            {quickAccess.customers && (
-              <ServiceItem
-                Icon={Users}
-                label="Customer Service"
-                total={stats.customersCount}
-                rate={`${stats.customersCount}`}
-                rateLabel="Total Customers"
-                rateColor="text-sky-600"
-                href={`/dashboard/shop/${shopId}/customers`}
-              />
-            )}
-            {quickAccess.orders && (
-              <ServiceItem
-                Icon={ShoppingCart}
-                label="Order Service"
-                total={stats.ordersCount}
-                rate={`${completionRate}%`}
-                rateLabel="Completion Rate"
-                rateColor={completionRate >= 80 ? 'text-emerald-600' : 'text-amber-600'}
-                href={`/dashboard/shop/${shopId}/orders`}
-              />
-            )}
-            {quickAccess.voiceAssistant && (
-              <ServiceItem
-                Icon={Mic2}
-                label="Voice Assistant"
-                total={0}
-                rate="Active"
-                rateLabel="Status"
-                rateColor="text-brand-gold"
-                href={`/dashboard/shop/${shopId}/voice-assistant`}
-              />
-            )}
-            {!quickAccess.customers && !quickAccess.orders && !quickAccess.voiceAssistant && (
-              <div className="px-5 py-4 text-xs text-brand-stone">
-                Service shortcuts are hidden until access is granted by the shop owner.
-              </div>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* ── Bottom: Chart placeholder + Quick actions ─────────────── */}
-      <div className="grid lg:grid-cols-3 gap-4 lg:gap-5">
-
-        {/* Chart / activity area — 2 cols */}
-        <div className="lg:col-span-2 bg-white rounded-2xl border border-brand-border p-4 lg:p-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 lg:mb-5 gap-3">
+      {/* ── Middle: Recent Orders & Pipeline ─────────────────────────────────── */}
+      <div className="grid lg:grid-cols-3 gap-5">
+        {/* Recent Commissions — 2 Cols */}
+        <div className="lg:col-span-2 bg-white rounded-3xl border border-brand-border p-5 lg:p-7 shadow-sm">
+          <div className="flex items-center justify-between pb-4 border-b border-brand-border mb-4">
             <div>
-              <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">Overview</p>
-              <h3 className="font-display text-lg lg:text-xl text-brand-ink">Order Analysis</h3>
-              <p className="text-xs text-brand-stone">Volume and status distribution</p>
+              <p className="text-[10px] font-bold text-brand-gold uppercase tracking-[0.2em]">Recent Commissions</p>
+              <h3 className="font-display text-xl text-brand-ink mt-0.5">Active Bespoke Orders</h3>
             </div>
-            <div className="flex items-center gap-2">
-              <select className="h-8 pl-3 pr-8 rounded-lg border border-brand-border text-xs font-medium text-brand-charcoal bg-brand-cream focus:outline-none appearance-none">
-                <option>This Month</option>
-                <option>Last Month</option>
-                <option>This Year</option>
-              </select>
-            </div>
+            <Link
+              href={`/dashboard/shop/${shopId}/orders`}
+              className="text-xs font-bold text-brand-gold hover:underline flex items-center gap-1"
+            >
+              View All <ArrowUpRight size={13} />
+            </Link>
           </div>
 
-          {/* Simple visual bars */}
-          {stats.ordersCount === 0 ? (
-            <div className="flex flex-col items-center justify-center h-32 lg:h-40 text-center">
-              <BarChart3 size={28} className="lg:w-[32px] lg:h-[32px] text-brand-border mb-3" />
-              <p className="text-sm text-brand-stone">No order data yet.</p>
-              <p className="text-xs text-brand-stone/70 mt-1">Start taking orders to see analytics here.</p>
+          {recentOrders.length === 0 ? (
+            <div className="py-12 text-center">
+              <Package size={28} className="text-brand-border mx-auto mb-2" />
+              <p className="text-sm font-semibold text-brand-ink">No orders booked yet</p>
+              <p className="text-xs text-brand-stone mt-1">Create your first commission to start tracking.</p>
             </div>
           ) : (
-            <div className="space-y-3">
-              {[
-                { label: 'Completed',    count: stats.ordersCount - stats.activeOrdersCount, color: 'bg-emerald-400' },
-                { label: 'In Progress',  count: stats.activeOrdersCount,                     color: 'bg-amber-400'   },
-                { label: 'Total Orders', count: stats.ordersCount,                            color: 'bg-brand-ink'   },
-              ].map((row) => (
-                <div key={row.label}>
-                  <div className="flex justify-between text-xs text-brand-stone mb-1.5">
-                    <span className="font-medium">{row.label}</span>
-                    <span className="font-bold text-brand-ink">{row.count}</span>
+            <div className="divide-y divide-brand-border">
+              {recentOrders.map((order) => {
+                const customerName = [order.customers?.first_name, order.customers?.last_name]
+                  .filter(Boolean)
+                  .join(' ') || 'Client'
+                const relativeDue = formatRelativeDate(order.estimated_delivery_date)
+
+                return (
+                  <div key={order.id} className="py-3.5 flex items-center justify-between gap-4 first:pt-0 last:pb-0">
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-center gap-2">
+                        <span className="font-semibold text-sm text-brand-ink truncate">{customerName}</span>
+                        <span className="text-xs text-brand-stone font-mono">#{order.order_number}</span>
+                      </div>
+                      <p className="text-xs text-brand-charcoal truncate mt-0.5">
+                        {order.design_description || 'Custom Garment'}
+                      </p>
+                    </div>
+
+                    <div className="text-right flex-shrink-0">
+                      <p className="font-bold text-sm text-brand-ink">{formatNaira(order.total_price)}</p>
+                      <p
+                        className={`text-[10px] font-semibold mt-0.5 ${
+                          relativeDue.isUrgent ? 'text-brand-gold' : 'text-brand-stone'
+                        }`}
+                      >
+                        {order.estimated_delivery_date ? relativeDue.text : 'No due date'}
+                      </p>
+                    </div>
                   </div>
-                  <div className="h-2 rounded-full bg-brand-cream overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${row.color} transition-all duration-700`}
-                      style={{ width: `${stats.ordersCount > 0 ? (row.count / stats.ordersCount) * 100 : 0}%` }}
-                    />
-                  </div>
-                </div>
-              ))}
+                )
+              })}
             </div>
           )}
-
-          <p className="text-[10px] text-brand-stone/55 mt-4 lg:mt-5 flex items-center gap-1.5">
-            <TrendingUp size={10} />
-            Data synchronised with live orders
-          </p>
         </div>
 
-        {/* Quick actions — 1 col */}
-        <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6">
-          <div className="mb-4 lg:mb-5">
-            <p className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em] mb-1">Shortcuts</p>
-            <h3 className="font-display text-lg lg:text-xl text-brand-ink">Quick Actions</h3>
+        {/* Studio Pipeline & Capacity — 1 Col */}
+        <div className="bg-white rounded-3xl border border-brand-border p-5 lg:p-7 shadow-sm flex flex-col justify-between">
+          <div>
+            <div className="flex items-center gap-2 mb-4">
+              <BarChart3 size={18} className="text-brand-gold" />
+              <h3 className="font-display text-xl text-brand-ink">Production Stage Pulse</h3>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="font-medium text-brand-stone">Sewing & In Progress</span>
+                  <span className="font-bold text-brand-ink">{stats.activeOrdersCount}</span>
+                </div>
+                <div className="h-2.5 rounded-full bg-brand-cream overflow-hidden">
+                  <div
+                    className="h-full bg-brand-gold rounded-full transition-all duration-700"
+                    style={{
+                      width: `${stats.ordersCount > 0 ? (stats.activeOrdersCount / stats.ordersCount) * 100 : 0}%`,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex justify-between text-xs mb-1.5">
+                  <span className="font-medium text-brand-stone">Completed & Ready</span>
+                  <span className="font-bold text-emerald-700">
+                    {stats.ordersCount - stats.activeOrdersCount}
+                  </span>
+                </div>
+                <div className="h-2.5 rounded-full bg-brand-cream overflow-hidden">
+                  <div
+                    className="h-full bg-emerald-500 rounded-full transition-all duration-700"
+                    style={{
+                      width: `${
+                        stats.ordersCount > 0
+                          ? ((stats.ordersCount - stats.activeOrdersCount) / stats.ordersCount) * 100
+                          : 0
+                      }%`,
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-6 p-4 rounded-2xl bg-brand-cream border border-brand-border">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-brand-stone flex items-center gap-1 mb-1">
+                <Calendar size={11} className="text-brand-gold" />
+                Production Velocity
+              </span>
+              <p className="text-xs text-brand-charcoal leading-relaxed">
+                Your workshop is currently operating at{' '}
+                <strong className="text-brand-ink">{completionRate}%</strong> completed output across all orders.
+              </p>
+            </div>
           </div>
-          <div className="">
-            {quickAccess.customers && (
-              <QuickAction Icon={Users} label="Manage Customers" href={`/dashboard/shop/${shopId}/customers`} />
-            )}
-            {quickAccess.orders && (
-              <QuickAction Icon={ShoppingCart} label="View Orders" href={`/dashboard/shop/${shopId}/orders`} />
-            )}
-            {quickAccess.catalog && (
-              <QuickAction Icon={Package} label="Manage Catalog" href={`/dashboard/shop/${shopId}/catalog`} />
-            )}
-            {quickAccess.inventory && (
-              <QuickAction Icon={Boxes} label="Manage Inventory" href={`/dashboard/shop/${shopId}/inventory`} />
-            )}
-            {quickAccess.measurements && (
-              <QuickAction Icon={Ruler} label="Measurements" href={`/dashboard/shop/${shopId}/measurements`} />
-            )}
-            {quickAccess.voiceAssistant && (
-              <QuickAction Icon={Mic2} label="Voice Assistant" href={`/dashboard/shop/${shopId}/voice-assistant`} />
-            )}
-            {quickAccess.settings && (
-              <QuickAction Icon={Settings} label="Shop Settings" href={`/dashboard/shop/${shopId}/settings`} variant="outline" />
-            )}
-            {!Object.values(quickAccess).some(Boolean) && (
-              <p className="text-xs text-brand-stone">No shortcuts available for your current access.</p>
-            )}
+
+          <div className="pt-5 border-t border-brand-border mt-5 flex items-center justify-between text-xs text-brand-stone">
+            <span className="flex items-center gap-1.5 font-medium">
+              <TrendingUp size={12} className="text-emerald-600" />
+              Live atelier stats
+            </span>
+            <Link href={`/dashboard/shop/${shopId}/planner`} className="font-bold text-brand-ink hover:underline">
+              Open Planner →
+            </Link>
           </div>
         </div>
       </div>
-
     </div>
   )
 }

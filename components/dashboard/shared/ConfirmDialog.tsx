@@ -43,7 +43,7 @@ export function ConfirmDialog({
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+        <DialogHeader className="pr-8 text-left">
           <div className="flex items-center gap-3">
             {variant === 'destructive' && (
               <div className="flex-shrink-0 w-10 h-10 rounded-full bg-red-100 flex items-center justify-center">

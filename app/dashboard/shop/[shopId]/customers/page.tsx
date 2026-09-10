@@ -36,6 +36,7 @@ export default function CustomersPage() {
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [newCustomer, setNewCustomer] = useState<CustomerFormData>(initialCustomerFormData)
   const [editForm, setEditForm] = useState<Partial<Customer>>({})
+  const [cityFilter, setCityFilter] = useState('all')
 
   useEffect(() => {
     fetchCustomers()
@@ -194,6 +195,9 @@ export default function CustomersPage() {
     onDelete: openDeleteDialog,
   })
 
+  const visibleCustomers = cityFilter === 'all' ? customers : customers.filter((customer) => (customer.city || 'Unspecified') === cityFilter)
+  const cities = [...new Set(customers.map((customer) => customer.city || 'Unspecified'))].sort()
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full min-h-[60vh]">
@@ -211,9 +215,33 @@ export default function CustomersPage() {
       <StatsGrid customers={customers} />
 
       {/* Data Table */}
-      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6">
+      <div className="bg-white rounded-3xl border border-brand-border p-5 lg:p-7 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4 pb-3 border-b border-brand-border">
+          <div>
+            <h2 className="font-display text-xl text-brand-ink">Client Directory</h2>
+            <p className="text-xs text-brand-stone mt-0.5">Manage client profiles, measurements, and commission history</p>
+          </div>
+          {cities.length > 1 && (
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-brand-cream border border-brand-border rounded-xl">
+              <span className="text-xs text-brand-gold">📍</span>
+              <select
+                value={cityFilter}
+                onChange={(event) => setCityFilter(event.target.value)}
+                className="bg-transparent text-xs font-semibold text-brand-ink focus:outline-none cursor-pointer"
+                aria-label="Filter customers by location"
+              >
+                <option value="all">All Locations ({customers.length})</option>
+                {cities.map((city) => (
+                  <option key={city} value={city}>
+                    {city}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+        </div>
         <DataTable
-          data={customers}
+          data={visibleCustomers}
           columns={columns}
           keyExtractor={(c) => c.id}
           searchKeys={['first_name', 'last_name', 'email', 'phone']}

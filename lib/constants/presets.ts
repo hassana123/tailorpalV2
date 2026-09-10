@@ -1,0 +1,126 @@
+export interface GarmentPreset {
+  id: string
+  name: string
+  gender: 'male' | 'female' | 'unisex'
+  description: string
+  icon: string
+  recommendedFields: string[]
+  commonStyles?: string[]
+}
+
+export const GARMENT_PRESETS: GarmentPreset[] = [
+  {
+    id: 'senator',
+    name: "Men's Senator / Kaftan",
+    gender: 'male',
+    description: 'Classic 2-piece tailored native outfit (Top & Trousers)',
+    icon: '👔',
+    recommendedFields: [
+      'chest',
+      'shoulder_width',
+      'sleeve_length',
+      'neck',
+      'front_length',
+      'waist',
+      'thigh',
+      'trouser_length',
+      'ankle',
+    ],
+    commonStyles: ['Short Sleeve Senator', 'Long Sleeve Kaftan', 'Chest Pocket Embroidery', 'Hidden Buttons'],
+  },
+  {
+    id: 'agbada',
+    name: 'Agbada (3-Piece Grand Regalia)',
+    gender: 'male',
+    description: 'Flowing Agbada outer robe + Kaftan inner top + Trousers',
+    icon: '🥻',
+    recommendedFields: [
+      'full_length',
+      'shoulder_width',
+      'sleeve_length',
+      'chest',
+      'neck',
+      'front_length',
+      'trouser_length',
+      'waist',
+      'thigh',
+    ],
+    commonStyles: ['Traditional Agbada', 'Slim-cut Modern Agbada', 'H-cut Embroidered'],
+  },
+  {
+    id: 'gown_dress',
+    name: "Women's Gown / Dress / Corset",
+    gender: 'female',
+    description: 'Formal dress, evening gown, bridal or tailored corset gown',
+    icon: '👗',
+    recommendedFields: [
+      'chest',
+      'under_bust',
+      'waist',
+      'hip',
+      'shoulder_width',
+      'shoulder_to_waist',
+      'dress_length',
+      'sleeve_length',
+      'upper_arm',
+      'waist_to_floor',
+    ],
+    commonStyles: ['A-Line Gown', 'Mermaid Cut', 'Corset Bodice', 'Empire Waist', 'Slit Dress'],
+  },
+  {
+    id: 'iro_buba',
+    name: 'Iro & Buba / Lace Blouse & Wrapper',
+    gender: 'female',
+    description: 'Traditional lace blouse with tailored wrapper or skirt',
+    icon: '👚',
+    recommendedFields: [
+      'chest',
+      'shoulder_width',
+      'sleeve_length',
+      'upper_arm',
+      'front_length',
+      'waist',
+      'hip',
+      'skirt_length',
+    ],
+    commonStyles: ['Tulip Buba', 'Modern Peplum Blouse', 'Oleku Short Sleeve', 'Fitted Buba'],
+  },
+  {
+    id: 'suit',
+    name: 'Men / Women Suit & Blazer',
+    gender: 'unisex',
+    description: 'Bespoke 2-piece or 3-piece corporate / wedding suit',
+    icon: '🕴️',
+    recommendedFields: [
+      'chest',
+      'waist',
+      'hip',
+      'shoulder_width',
+      'sleeve_length',
+      'back_length',
+      'neck',
+      'trouser_length',
+      'inseam',
+      'thigh',
+    ],
+    commonStyles: ['Single Breasted', 'Double Breasted', 'Tuxedo / Dinner Jacket', 'Mandarin Collar Suit'],
+  },
+  {
+    id: 'trousers',
+    name: 'Tailored Trousers / Pants',
+    gender: 'unisex',
+    description: 'Custom fitted trousers, chinos, or pleated native pants',
+    icon: '👖',
+    recommendedFields: [
+      'waist',
+      'hip',
+      'trouser_length',
+      'inseam',
+      'thigh',
+      'knee',
+      'ankle',
+      'rise',
+    ],
+    commonStyles: ['Slim-Fit Trousers', 'Gurkha Waistband', 'Wide-Leg Pleated', 'Jogger Cuff Native'],
+  },
+]

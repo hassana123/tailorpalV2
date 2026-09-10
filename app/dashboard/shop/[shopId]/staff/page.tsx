@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { DataTable } from '@/components/dashboard/shared/DataTable'
 import { ConfirmDialog } from '@/components/dashboard/shared/ConfirmDialog'
 
@@ -14,9 +15,11 @@ import { PermissionsModal } from '../../../../../components/dashboard/staff/Perm
 import { useStaffColumns } from '../../../../../components/dashboard/staff/staffColumns'
 import { useInvitationColumns } from '../../../../../components/dashboard/staff/invitationColumns'
 import { DeliveryMethod, StaffMember } from './types'
+import { StaffWorkloadPanel } from '@/components/dashboard/staff/StaffWorkloadPanel'
 
 
 export default function StaffManagementPage() {
+  const { shopId } = useParams<{ shopId: string }>()
   const {
     staff,
     invitations,
@@ -137,6 +140,7 @@ export default function StaffManagementPage() {
     <div className="p-4 lg:p-6 xl:p-8 space-y-6">
       <StaffHeader onInvite={() => setInviteModalOpen(true)} />
       <StatsGrid staff={staff} invitations={invitations} />
+      <StaffWorkloadPanel shopId={shopId} />
 
       {/* Staff table */}
       <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6">

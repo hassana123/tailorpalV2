@@ -1,7 +1,7 @@
 'use client'
 /* eslint-disable @next/next/no-img-element */
 
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import Link from 'next/link'
 import { createClient } from '@/lib/supabase/client'
@@ -21,12 +21,16 @@ import {
   ImageIcon,
   Tag,
   Loader2,
-  ArrowLeft,
   Trash2,
   Eye,
   Pencil,
+  Share2,
+  Copy,
+  ExternalLink,
+  Search,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatNaira } from '@/lib/utils/format'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -76,12 +80,14 @@ function StatCard({
 
 function CatalogItemCard({
   item,
+  shopId,
   onView,
   onEdit,
   onToggle,
   onDelete,
 }: {
   item: CatalogItem
+  shopId: string
   onView: (item: CatalogItem) => void
   onEdit: (item: CatalogItem) => void
   onToggle: (item: CatalogItem) => void
@@ -119,7 +125,7 @@ function CatalogItemCard({
         <div className="flex items-start justify-between gap-2 mb-1">
           <p className="font-semibold text-brand-ink text-sm leading-snug">{item.name}</p>
           <p className="text-sm font-bold text-brand-gold whitespace-nowrap">
-            ${item.price.toFixed(2)}
+            {formatNaira(item.price)}
           </p>
         </div>
         {item.description && (
@@ -130,6 +136,9 @@ function CatalogItemCard({
 
         {/* Actions */}
         <div className="flex gap-2 mt-4 pt-3 border-t border-brand-border">
+          <Link href={`/dashboard/shop/${shopId}/orders?style=${encodeURIComponent(item.name)}&styleImage=${encodeURIComponent(item.image_url || '')}`} className="h-8 px-2 rounded-md bg-brand-ink text-white text-xs font-semibold inline-flex items-center">
+            Use for order
+          </Link>
           <Button
             variant="ghost"
             size="sm"
@@ -197,6 +206,41 @@ export function ShopCatalogPageContent() {
     price: '',
     imageUrl: '',
   })
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedCategory, setSelectedCategory] = useState('All Styles')
+
+  const publicLookbookUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/marketplace/shop/${shopId}`
+    : `/marketplace/shop/${shopId}`
+
+  const handleCopyLookbookLink = () => {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      navigator.clipboard.writeText(publicLookbookUrl)
+      toast.success('Public Lookbook link copied to clipboard!')
+    }
+  }
+
+  const handleShareOnWhatsApp = () => {
+    const text = encodeURIComponent(
+      `Hello! Check out our atelier catalog & style lookbook on TailorPal:\n${publicLookbookUrl}\n\nBrowse our styles and place your custom order directly!`
+    )
+    window.open(`https://wa.me/?text=${text}`, '_blank')
+  }
+
+  const filteredItems = useMemo(() => {
+    return catalogItems.filter((item) => {
+      const matchesSearch =
+        item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(searchQuery.toLowerCase()))
+      
+      if (!matchesSearch) return false
+      if (selectedCategory === 'All Styles') return true
+      return (
+        item.name.toLowerCase().includes(selectedCategory.toLowerCase()) ||
+        (item.description && item.description.toLowerCase().includes(selectedCategory.toLowerCase()))
+      )
+    })
+  }, [catalogItems, searchQuery, selectedCategory])
 
   useEffect(() => {
     void loadCatalog()
@@ -394,18 +438,34 @@ export function ShopCatalogPageContent() {
             Manage items customers can browse and order from your marketplace profile
           </p>
         </div>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" asChild>
-            <Link href={`/dashboard/shop/${shopId}/settings`} className="flex items-center gap-2">
-              <ArrowLeft className="h-4 w-4" />
-              Settings
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={handleCopyLookbookLink}
+            className="border-brand-border text-brand-ink hover:bg-brand-cream text-xs h-9"
+          >
+            <Copy className="h-3.5 w-3.5 mr-1.5 text-brand-stone" />
+            Copy Lookbook Link
+          </Button>
+          <Button
+            variant="outline"
+            onClick={handleShareOnWhatsApp}
+            className="border-emerald-200 text-emerald-700 hover:bg-emerald-50 text-xs h-9 font-medium"
+          >
+            <Share2 className="h-3.5 w-3.5 mr-1.5 text-emerald-600" />
+            WhatsApp Lookbook
+          </Button>
+          <Button variant="outline" asChild className="text-xs h-9 border-brand-border text-brand-stone hover:text-brand-ink">
+            <Link href={`/marketplace/shop/${shopId}`} target="_blank" className="flex items-center gap-1.5">
+              <ExternalLink className="h-3.5 w-3.5" />
+              Preview Store
             </Link>
           </Button>
           <Button
             onClick={() => setAddModalOpen(true)}
-            className="bg-brand-ink hover:bg-brand-charcoal shadow-brand"
+            className="bg-brand-ink hover:bg-brand-charcoal shadow-brand text-xs h-9"
           >
-            <Plus className="h-4 w-4 mr-2" />
+            <Plus className="h-4 w-4 mr-1.5" />
             Add Item
           </Button>
         </div>
@@ -418,11 +478,44 @@ export function ShopCatalogPageContent() {
         <StatCard label="Inactive"      value={inactiveCount}       icon={XCircle}      color="bg-red-100 text-red-500"        />
       </div>
 
-      {/* Items grid */}
-      <div className="bg-white rounded-2xl border border-brand-border p-4 ">
-        <div className="mb-5">
-          <h2 className="font-display text-lg text-brand-ink">All Items</h2>
-          <p className="text-xs text-brand-stone mt-0.5">{catalogItems.length} catalog item{catalogItems.length !== 1 ? 's' : ''}</p>
+      {/* Items section */}
+      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-brand-border">
+          <div>
+            <h2 className="font-display text-lg text-brand-ink">All Designs & Styles</h2>
+            <p className="text-xs text-brand-stone mt-0.5">
+              {filteredItems.length} of {catalogItems.length} style{catalogItems.length !== 1 ? 's' : ''} shown
+            </p>
+          </div>
+
+          {/* Search bar */}
+          <div className="relative w-full sm:w-64">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone" />
+            <Input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search designs, fabrics..."
+              className="pl-8 h-9 text-xs rounded-xl bg-brand-cream/40 border-brand-border"
+            />
+          </div>
+        </div>
+
+        {/* Category Pills */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
+          {['All Styles', 'Senator', 'Kaftan', 'Agbada', 'Dress & Gown', 'Two-Piece', 'Suit', 'Casual'].map((cat) => (
+            <button
+              key={cat}
+              onClick={() => setSelectedCategory(cat)}
+              className={cn(
+                'px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all',
+                selectedCategory === cat
+                  ? 'bg-brand-ink text-white shadow-xs'
+                  : 'bg-brand-cream/70 text-brand-stone hover:text-brand-ink hover:bg-brand-cream'
+              )}
+            >
+              {cat}
+            </button>
+          ))}
         </div>
 
         {catalogItems.length === 0 ? (
@@ -440,12 +533,29 @@ export function ShopCatalogPageContent() {
               Add your first item
             </Button>
           </div>
+        ) : filteredItems.length === 0 ? (
+          <div className="text-center py-12 rounded-xl border border-dashed border-brand-border bg-brand-cream/20">
+            <p className="text-sm font-semibold text-brand-ink">No styles match &ldquo;{searchQuery || selectedCategory}&rdquo;</p>
+            <p className="text-xs text-brand-stone mt-1">Try searching for a different keyword or reset filters.</p>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                setSearchQuery('')
+                setSelectedCategory('All Styles')
+              }}
+              className="mt-3 text-xs"
+            >
+              Clear filters
+            </Button>
+          </div>
         ) : (
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-            {catalogItems.map((item) => (
+            {filteredItems.map((item) => (
               <CatalogItemCard
                 key={item.id}
                 item={item}
+                shopId={shopId}
                 onView={openViewModal}
                 onEdit={openEditModal}
                 onToggle={toggleCatalogItemActive}
@@ -463,38 +573,63 @@ export function ShopCatalogPageContent() {
           setAddModalOpen(open)
           if (!open) setNewCatalogItem({ name: '', description: '', price: '', imageUrl: '' })
         }}
-        title="Add Catalog Item"
-        description="Fill in the details below to add a new item to your shop catalog."
+        title="Add Catalog Style"
+        description="Add a bespoke design or garment to your atelier lookbook for customers to commission."
         onSubmit={addCatalogItem}
         isSubmitting={catalogSaving}
-        submitLabel="Add Item"
+        submitLabel="Add to Lookbook"
         maxWidth="lg"
       >
         <div className="space-y-4">
+          {/* Quick Style presets */}
+          <div>
+            <Label className="text-xs text-brand-stone mb-1.5 block">Quick Design Presets</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {['Men\'s Senator Suit', '3-Piece Agbada', 'Female Dinner Gown', 'Iro & Buba Luxury', 'Corporate Blazer', 'Ankara 2-Piece'].map((preset) => (
+                <button
+                  key={preset}
+                  type="button"
+                  onClick={() => setNewCatalogItem(prev => ({
+                    ...prev,
+                    name: preset,
+                    description: prev.description || `Custom tailored ${preset} handcrafted with premium detailing.`
+                  }))}
+                  className="px-2.5 py-1 rounded-lg bg-brand-cream border border-brand-border text-[11px] font-medium text-brand-ink hover:border-brand-gold hover:bg-orange-50/50 transition-colors"
+                >
+                  + {preset}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Item Name *</Label>
+              <Label>Design / Garment Name *</Label>
               <Input
-                placeholder="e.g. Kaftan Dress"
+                placeholder="e.g. Royal Navy Senator"
                 value={newCatalogItem.name}
                 onChange={(e) => setNewCatalogItem((prev) => ({ ...prev, name: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label>Price *</Label>
-              <Input
-                type="number"
-                placeholder="0.00"
-                value={newCatalogItem.price}
-                onChange={(e) => setNewCatalogItem((prev) => ({ ...prev, price: e.target.value }))}
-              />
+              <Label>Price (₦ Naira) *</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone font-semibold text-sm">₦</span>
+                <Input
+                  type="number"
+                  placeholder="35000"
+                  className="pl-8"
+                  value={newCatalogItem.price}
+                  onChange={(e) => setNewCatalogItem((prev) => ({ ...prev, price: e.target.value }))}
+                />
+              </div>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label>Description</Label>
+            <Label>Design Description & Fabric Suggestions</Label>
             <Textarea
-              placeholder="Describe the item, fabric, style, available sizes…"
+              placeholder="Describe styling details, collar cut, recommended fabrics (e.g. Italian Wool, Silk, Cashmere), and turnaround…"
               rows={3}
               value={newCatalogItem.description}
               onChange={(e) => setNewCatalogItem((prev) => ({ ...prev, description: e.target.value }))}
@@ -543,7 +678,7 @@ export function ShopCatalogPageContent() {
           open={viewModalOpen}
           onOpenChange={setViewModalOpen}
           title={selectedCatalogItem.name}
-          description="Catalog item details"
+          description="Catalog style details"
           hideFooter
           maxWidth="md"
         >
@@ -552,26 +687,39 @@ export function ShopCatalogPageContent() {
               <img
                 src={selectedCatalogItem.image_url}
                 alt={selectedCatalogItem.name}
-                className="w-full h-52 rounded-xl object-cover border border-brand-border"
+                className="w-full h-56 rounded-2xl object-cover border border-brand-border shadow-xs"
               />
             ) : (
-              <div className="h-52 rounded-xl border border-dashed border-brand-border bg-brand-cream/40 flex items-center justify-center">
-                <ImageIcon className="text-brand-stone" />
+              <div className="h-56 rounded-2xl border border-dashed border-brand-border bg-brand-cream/40 flex items-center justify-center">
+                <ImageIcon className="text-brand-stone" size={32} />
               </div>
             )}
-            <div className="space-y-2 text-sm text-brand-stone">
-              <p>
-                <span className="font-semibold text-brand-ink">Price:</span> ${selectedCatalogItem.price.toFixed(2)}
-              </p>
-              <p>
-                <span className="font-semibold text-brand-ink">Status:</span>{' '}
-                {selectedCatalogItem.is_active ? 'Active' : 'Inactive'}
-              </p>
+            <div className="p-3 bg-brand-cream/50 rounded-xl border border-brand-border flex items-center justify-between">
+              <div>
+                <p className="text-[10px] uppercase font-bold text-brand-stone tracking-wider">Estimated Price</p>
+                <p className="font-display text-2xl text-brand-gold font-bold">
+                  {formatNaira(selectedCatalogItem.price)}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  'inline-flex items-center gap-1 text-xs font-bold px-2.5 py-1 rounded-full',
+                  selectedCatalogItem.is_active
+                    ? 'bg-emerald-100 text-emerald-700'
+                    : 'bg-red-100 text-red-600',
+                )}
+              >
+                {selectedCatalogItem.is_active ? <CheckCircle2 size={12} /> : <XCircle size={12} />}
+                {selectedCatalogItem.is_active ? 'Active on Lookbook' : 'Hidden'}
+              </span>
             </div>
             {selectedCatalogItem.description && (
-              <p className="text-sm text-brand-charcoal leading-relaxed">
-                {selectedCatalogItem.description}
-              </p>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-brand-stone mb-1">Details & Fabric Notes</p>
+                <p className="text-sm text-brand-ink leading-relaxed">
+                  {selectedCatalogItem.description}
+                </p>
+              </div>
             )}
           </div>
         </ModalForm>
@@ -582,7 +730,7 @@ export function ShopCatalogPageContent() {
           open={editModalOpen}
           onOpenChange={setEditModalOpen}
           title={`Edit ${selectedCatalogItem.name}`}
-          description="Update catalog item details"
+          description="Update design specifications and pricing"
           onSubmit={saveEditedCatalogItem}
           isSubmitting={catalogSaving}
           submitLabel="Save Changes"
@@ -591,23 +739,27 @@ export function ShopCatalogPageContent() {
           <div className="space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label>Item Name *</Label>
+                <Label>Design Name *</Label>
                 <Input
                   value={editCatalogItem.name}
                   onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, name: e.target.value }))}
                 />
               </div>
               <div className="space-y-2">
-                <Label>Price *</Label>
-                <Input
-                  type="number"
-                  value={editCatalogItem.price}
-                  onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, price: e.target.value }))}
-                />
+                <Label>Price (₦ Naira) *</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone font-semibold text-sm">₦</span>
+                  <Input
+                    type="number"
+                    className="pl-8"
+                    value={editCatalogItem.price}
+                    onChange={(e) => setEditCatalogItem((prev) => ({ ...prev, price: e.target.value }))}
+                  />
+                </div>
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Description</Label>
+              <Label>Description & Details</Label>
               <Textarea
                 rows={3}
                 value={editCatalogItem.description}

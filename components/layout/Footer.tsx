@@ -33,7 +33,7 @@ const FOOTER_COLS = [
 
 export function Footer() {
   return (
-    <footer className="bg-brand-ink text-white/50 py-14">
+    <footer className="bg-brand-ink text-white/50 py-14 w-full m-0 border-0 relative z-10">
       <div className="max-w-7xl mx-auto px-5 sm:px-8 lg:px-10">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-10 mb-12">
           {/* Brand */}

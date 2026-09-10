@@ -8,10 +8,13 @@ import { requiresRoleSelection } from '@/lib/auth/role'
 import { Navbar }              from '@/components/layout/Navbar'
 import { Footer }              from '@/components/layout/Footer'
 import { Hero }                from '@/components/home/Hero'
-import { TrustedStrip } from '@/components/home/TrustedStripe'
+import { TrustedStrip }        from '@/components/home/TrustedStripe'
+import { AtelierShowcaseSlider } from '@/components/home/AtelierShowcaseSlider'
+import { GarmentStyleSlider }  from '@/components/home/GarmentStyleSlider'
 import { StatsSection }        from '@/components/home/StatsSection'
-import { FeaturesSection } from '@/components/home/FeautureSection'
+import { FeaturesSection }     from '@/components/home/FeautureSection'
 import { HowItWorks }          from '@/components/home/HowItWorks'
+import { PlannerHighlight }    from '@/components/home/PlannerHighlight'
 import { TestimonialsSection } from '@/components/home/TestimonialsSection'
 import { FinalCTA }            from '@/components/home/FinalCTA'
 
@@ -61,12 +64,15 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-brand-cream overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-brand-cream m-0 p-0">
       <Navbar />
       <Hero />
       <TrustedStrip />
+      <AtelierShowcaseSlider />
+      <GarmentStyleSlider />
       <StatsSection />
       <FeaturesSection />
+      <PlannerHighlight />
       <HowItWorks />
       <TestimonialsSection />
       <FinalCTA />

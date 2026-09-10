@@ -1,36 +1,14 @@
 'use client'
 
-import { CheckCircle2, Loader2, ShoppingCart, Tag } from 'lucide-react'
-
-function StatCard({
-  label,
-  value,
-  icon: Icon,
-  color,
-}: {
-  label: string
-  value: number
-  icon: React.ElementType
-  color: string
-}) {
-  return (
-    <div className="bg-white rounded-2xl border border-brand-border p-4 flex items-center gap-3">
-      <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${color}`}>
-        <Icon size={20} />
-      </div>
-      <div>
-        <p className="text-[10px] font-bold text-brand-stone uppercase tracking-wider">{label}</p>
-        <p className="font-display text-2xl text-brand-ink">{value}</p>
-      </div>
-    </div>
-  )
-}
+import { CheckCircle2, Clock3, ShoppingBag, Sparkles } from 'lucide-react'
+import { formatCompactNaira } from '@/lib/utils/format'
 
 interface OrdersStatsGridProps {
   totalOrders: number
   activeOrders: number
   completedOrders: number
   pendingCatalogRequests: number
+  totalRevenue?: number
 }
 
 export function OrdersStatsGrid({
@@ -38,13 +16,71 @@ export function OrdersStatsGrid({
   activeOrders,
   completedOrders,
   pendingCatalogRequests,
+  totalRevenue,
 }: OrdersStatsGridProps) {
   return (
     <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-      <StatCard label="Total Orders" value={totalOrders} icon={ShoppingCart} color="bg-sky-100 text-sky-600" />
-      <StatCard label="Active" value={activeOrders} icon={Loader2} color="bg-blue-100 text-blue-600" />
-      <StatCard label="Completed" value={completedOrders} icon={CheckCircle2} color="bg-emerald-100 text-emerald-600" />
-      <StatCard label="Catalog Requests" value={pendingCatalogRequests} icon={Tag} color="bg-amber-100 text-amber-600" />
+      {/* Total Orders Card */}
+      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-5 flex flex-col justify-between hover:shadow-card-hover transition-all duration-200">
+        <div className="flex items-start justify-between">
+          <span className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em]">Total Orders</span>
+          <div className="w-9 h-9 rounded-xl bg-sky-50 text-sky-600 flex items-center justify-center">
+            <ShoppingBag size={17} />
+          </div>
+        </div>
+        <div className="mt-2">
+          <p className="font-display text-2xl lg:text-3xl text-brand-ink">{totalOrders}</p>
+          <p className="text-[11px] text-brand-stone mt-1">Booked in atelier</p>
+        </div>
+      </div>
+
+      {/* In Production Card */}
+      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-5 flex flex-col justify-between hover:shadow-card-hover transition-all duration-200">
+        <div className="flex items-start justify-between">
+          <span className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em]">In Production</span>
+          <div className="w-9 h-9 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center">
+            <Clock3 size={17} />
+          </div>
+        </div>
+        <div className="mt-2">
+          <p className="font-display text-2xl lg:text-3xl text-brand-ink">{activeOrders}</p>
+          <p className="text-[11px] text-amber-700 font-medium mt-1">Cutting, sewing & fitting</p>
+        </div>
+      </div>
+
+      {/* Completed / Ready Card */}
+      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-5 flex flex-col justify-between hover:shadow-card-hover transition-all duration-200">
+        <div className="flex items-start justify-between">
+          <span className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em]">Completed</span>
+          <div className="w-9 h-9 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center">
+            <CheckCircle2 size={17} />
+          </div>
+        </div>
+        <div className="mt-2">
+          <p className="font-display text-2xl lg:text-3xl text-brand-ink">{completedOrders}</p>
+          <p className="text-[11px] text-emerald-700 font-medium mt-1">Ready or delivered</p>
+        </div>
+      </div>
+
+      {/* Revenue or Inquiries Card */}
+      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-5 flex flex-col justify-between hover:shadow-card-hover transition-all duration-200">
+        <div className="flex items-start justify-between">
+          <span className="text-[10px] font-bold text-brand-stone uppercase tracking-[0.2em]">
+            {totalRevenue !== undefined ? 'Order Value' : 'Inquiries'}
+          </span>
+          <div className="w-9 h-9 rounded-xl bg-orange-50 text-brand-gold flex items-center justify-center">
+            <Sparkles size={17} />
+          </div>
+        </div>
+        <div className="mt-2">
+          <p className="font-display text-2xl lg:text-3xl text-brand-ink">
+            {totalRevenue !== undefined ? formatCompactNaira(totalRevenue) : pendingCatalogRequests}
+          </p>
+          <p className="text-[11px] text-brand-stone mt-1">
+            {totalRevenue !== undefined ? 'Active order pipeline' : 'Pending requests'}
+          </p>
+        </div>
+      </div>
     </div>
   )
 }

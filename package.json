@@ -8,6 +8,8 @@
     "start": "next start",
     "typecheck": "tsc --noEmit --incremental false",
     "lint": "eslint . --max-warnings=0"
+    ,"seed:demo": "node --env-file=.env scripts/seed-demo-data.js"
+    ,"verify:demo": "node --env-file=.env scripts/verify-demo-data.js"
   },
   "dependencies": {
     "@ai-sdk/react": "^3.0.0",

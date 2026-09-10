@@ -49,38 +49,41 @@ export function AccountProfileDialog({
     >
       {/* Panel */}
       <div
-        className="relative w-full max-w-md bg-white rounded-2xl border border-brand-border shadow-brand-lg animate-slide-up"
+        className="relative w-full max-w-md bg-white rounded-3xl border border-brand-border shadow-2xl animate-slide-up max-h-[92vh] flex flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-brand-border">
+        <div className="flex items-center justify-between px-6 pt-6 pb-5 border-b border-brand-border flex-shrink-0">
           <div>
             <h3 className="font-display text-xl text-brand-ink">Account Profile</h3>
             <p className="text-xs text-brand-stone mt-0.5">Update your display name and details</p>
           </div>
           <button
             onClick={() => onOpenChange(false)}
-            className="p-2 rounded-xl text-brand-stone hover:text-brand-ink hover:bg-brand-cream transition-all"
+            className="h-8 w-8 rounded-full flex items-center justify-center text-brand-stone hover:text-brand-ink hover:bg-brand-cream border border-brand-border/60 hover:border-brand-ink/20 transition-all cursor-pointer"
+            aria-label="Close dialog"
           >
             <X size={16} />
           </button>
         </div>
 
-        {/* Avatar row */}
-        <div className="flex items-center gap-4 px-6 py-5 border-b border-brand-border">
-          <div className="w-14 h-14 rounded-2xl bg-brand-ink text-white flex items-center justify-center font-display text-2xl flex-shrink-0">
-            {initials}
+        {/* Scrollable Body */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden min-w-0">
+          {/* Avatar row */}
+          <div className="flex items-center gap-4 px-6 py-5 border-b border-brand-border">
+            <div className="w-14 h-14 rounded-2xl bg-brand-ink text-white flex items-center justify-center font-display text-2xl flex-shrink-0">
+              {initials}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-semibold text-brand-ink text-sm truncate">
+                {firstName || lastName ? `${firstName} ${lastName}`.trim() : 'No name set'}
+              </p>
+              <p className="text-xs text-brand-stone mt-0.5 truncate">{email}</p>
+            </div>
           </div>
-          <div>
-            <p className="font-semibold text-brand-ink text-sm">
-              {firstName || lastName ? `${firstName} ${lastName}`.trim() : 'No name set'}
-            </p>
-            <p className="text-xs text-brand-stone mt-0.5">{email}</p>
-          </div>
-        </div>
 
-        {/* Form */}
-        <div className="px-6 py-5 space-y-4">
+          {/* Form */}
+          <div className="px-6 py-5 space-y-4">
 
           {/* Email (read-only) */}
           <div>
@@ -143,8 +146,9 @@ export function AccountProfileDialog({
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Footer */}
+      {/* Footer */}
         <div className="flex gap-3 px-6 pb-6">
           <button
             onClick={() => onOpenChange(false)}

@@ -16,6 +16,9 @@ import {
   Ruler,
   Mic,
   Settings,
+  Sparkles,
+  Workflow,
+  WalletCards,
   X
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -302,14 +305,20 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       }
 
       const ownerNav: DashboardNavItem[] = [
+        // Studio Group
         { href: `/dashboard/shop/${shopId}`, label: 'Dashboard', icon: LayoutDashboard },
         { href: `/dashboard/shop/${shopId}/customers`, label: 'Customers', icon: Users },
         { href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart },
-        { href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package },
-        { href: `/dashboard/shop/${shopId}/inventory`, label: 'Inventory', icon: Boxes },
         { href: `/dashboard/shop/${shopId}/measurements`, label: 'Measurements', icon: Ruler },
-        { href: `/dashboard/shop/${shopId}/voice-assistant`, label: 'Voice Assistant', icon: Mic },
+        // Workshop Group
+        { href: `/dashboard/shop/${shopId}/planner`, label: 'Production Planner', icon: Sparkles },
+        { href: `/dashboard/shop/${shopId}/workflow`, label: 'Production Workflow', icon: Workflow },
+        { href: `/dashboard/shop/${shopId}/inventory`, label: 'Inventory', icon: Boxes },
+        { href: `/dashboard/shop/${shopId}/finance`, label: 'Finance', icon: WalletCards },
         { href: `/dashboard/shop/${shopId}/staff`, label: 'Staff', icon: Users },
+        // Atelier & Commerce
+        { href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package },
+        { href: `/dashboard/shop/${shopId}/voice-assistant`, label: 'Voice Assistant', icon: Mic },
         { href: `/dashboard/shop/${shopId}/settings`, label: 'Settings', icon: Settings },
       ]
 
@@ -326,6 +335,8 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       }
       if (staffPermissions.can_manage_orders) {
         staffNav.push({ href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart })
+        staffNav.push({ href: `/dashboard/shop/${shopId}/planner`, label: 'Production Planner', icon: Sparkles })
+        staffNav.push({ href: `/dashboard/shop/${shopId}/workflow`, label: 'Production Workflow', icon: Workflow })
       }
       if (staffPermissions.can_manage_catalog) {
         staffNav.push({ href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package })
@@ -345,17 +356,17 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
     [isOwnerForShop, isStaffForShop, shopId, staffPermissions],
   )
 
-  // Primary items for bottom nav (max 5 for mobile UX)
+  // Primary items for bottom nav (max 4 for mobile UX + More tab)
   const primaryNavItems = useMemo(() => 
     navItems.filter(item => 
-      ['Dashboard', 'Customers', 'Orders', 'Catalog', 'Inventory'].includes(item.label)
+      ['Dashboard', 'Customers', 'Orders', 'Measurements'].includes(item.label)
     ), [navItems]
   )
 
   // More menu items
   const secondaryNavItems = useMemo(() => 
     navItems.filter(item => 
-      !['Dashboard', 'Customers', 'Orders', 'Catalog', 'Inventory'].includes(item.label)
+      !['Dashboard', 'Customers', 'Orders', 'Measurements'].includes(item.label)
     ), [navItems]
   )
 

@@ -37,55 +37,66 @@ export function PWAInstallPrompt({ className }: PWAInstallPromptProps) {
   return (
     <div
       className={cn(
-        'fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md animate-in slide-in-from-bottom-4',
+        'fixed bottom-5 left-4 right-4 z-50 mx-auto max-w-md animate-in slide-in-from-bottom-5',
         className
       )}
     >
-      <div className="bg-gradient-to-br from-purple-600 to-violet-700 rounded-2xl p-6 shadow-2xl text-white">
+      <div className="bg-[#0D1A33] border border-[#D97B2B]/35 rounded-3xl p-6 shadow-2xl text-white relative backdrop-blur-xl">
         <button
           onClick={handleDismiss}
-          className="absolute top-3 right-3 p-1.5 rounded-full bg-white/20 hover:bg-white/30 transition-colors"
-          aria-label="Dismiss"
+          className="absolute top-4 right-4 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-white/70 hover:text-white transition-colors"
+          aria-label="Dismiss install prompt"
         >
           <X className="w-4 h-4" />
         </button>
 
         <div className="flex items-start gap-4">
-          <div className="flex-shrink-0 w-12 h-12 bg-white/20 rounded-xl flex items-center justify-center">
+          <div className="flex-shrink-0 w-12 h-12 bg-[#D97B2B]/20 border border-[#D97B2B]/30 rounded-2xl flex items-center justify-center text-[#D97B2B]">
             <Phone className="w-6 h-6" />
           </div>
           
-          <div className="flex-1">
-            <h3 className="font-semibold text-lg mb-1">
-              Install TailorPal App
+          <div className="flex-1 pr-4">
+            <span className="text-[10px] font-bold text-[#D97B2B] uppercase tracking-wider block mb-0.5">
+              Atelier Mobile App
+            </span>
+            <h3 className="font-display font-semibold text-lg text-white mb-1">
+              Add TailorPal to Home Screen
             </h3>
-            <p className="text-white/80 text-sm mb-4">
-              Add TailorPal to your home screen for the best experience. It will appear like a native app!
+            <p className="text-white/70 text-xs leading-relaxed mb-4">
+              Get full offline-ready access to client measurements, garment presets, and live order tracking right from your phone.
             </p>
 
-            <div className="bg-white/10 rounded-xl p-4 mb-3">
-              <ol className="text-sm space-y-2">
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">1</span>
-                  Tap the <Download className="w-4 h-4" /> share button
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-3.5 mb-4">
+              <ol className="text-xs space-y-2 text-white/80">
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 bg-[#D97B2B] text-white rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0">1</span>
+                  Tap the Safari <Download className="w-3.5 h-3.5 inline text-[#D97B2B]" /> share button
                 </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">2</span>
-                  Scroll down and tap "Add to Home Screen"
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 bg-[#D97B2B] text-white rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0">2</span>
+                  Scroll down & tap <strong className="text-white font-semibold">&ldquo;Add to Home Screen&rdquo;</strong>
                 </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 bg-white/20 rounded-full flex items-center justify-center text-xs font-bold">3</span>
-                  Tap "Add" to install
+                <li className="flex items-center gap-2.5">
+                  <span className="w-5 h-5 bg-[#D97B2B] text-white rounded-full flex items-center justify-center text-[11px] font-bold flex-shrink-0">3</span>
+                  Tap <strong className="text-white font-semibold">&ldquo;Add&rdquo;</strong> in top right corner
                 </li>
               </ol>
             </div>
 
-            <button
-              onClick={handleDismiss}
-              className="w-full py-2.5 bg-white text-purple-700 font-medium rounded-xl hover:bg-white/90 transition-colors"
-            >
-              Got it, thanks!
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleDismiss}
+                className="flex-1 py-2.5 px-4 bg-[#D97B2B] hover:bg-[#c06d22] text-white font-bold text-xs rounded-xl transition-all shadow-gold"
+              >
+                Got it, thanks!
+              </button>
+              <button
+                onClick={handleDismiss}
+                className="py-2.5 px-3 text-white/60 hover:text-white text-xs font-medium rounded-xl hover:bg-white/5 transition-colors"
+              >
+                Don&apos;t show again
+              </button>
+            </div>
           </div>
         </div>
       </div>

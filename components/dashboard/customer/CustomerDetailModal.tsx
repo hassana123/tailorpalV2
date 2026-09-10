@@ -18,8 +18,10 @@ import {
   Ruler,
   Edit2,
   Plus,
+  MessageSquare,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { cleanPhoneForWhatsApp } from '@/lib/utils/format'
 
 interface Customer {
   id: string
@@ -63,6 +65,8 @@ export function CustomerDetailModal({
   onAddMeasurements,
 }: CustomerDetailModalProps) {
   const [measurements, setMeasurements] = useState<Measurement[]>([])
+  const [orders, setOrders] = useState<{ id: string; order_number: string; design_description: string | null; status: string; estimated_delivery_date: string | null; total_price: number | null }[]>([])
+  const [payments, setPayments] = useState<{ id: string; order_id: string; amount: number; payment_method: string; paid_at: string }[]>([])
   const [loading, setLoading] = useState(true)
   const [showAllMeasurementValues, setShowAllMeasurementValues] = useState(false)
   const supabase = createClient()
@@ -70,6 +74,8 @@ export function CustomerDetailModal({
   useEffect(() => {
     if (open) {
       fetchMeasurements()
+      void fetchOrders()
+      void fetchPayments()
       setShowAllMeasurementValues(false)
     }
   }, [open, customer.id])
@@ -92,6 +98,18 @@ export function CustomerDetailModal({
     } finally {
       setLoading(false)
     }
+  }
+
+  const fetchOrders = async () => {
+    const { data } = await supabase.from('orders').select('id, order_number, design_description, status, estimated_delivery_date, total_price').eq('customer_id', customer.id).order('created_at', { ascending: false })
+    setOrders(data ?? [])
+  }
+  const fetchPayments = async () => {
+    const { data: customerOrders } = await supabase.from('orders').select('id').eq('customer_id', customer.id)
+    const ids = (customerOrders ?? []).map((order) => order.id)
+    if (!ids.length) return setPayments([])
+    const { data } = await supabase.from('order_payments').select('id,order_id,amount,payment_method,paid_at').in('order_id', ids).order('paid_at', { ascending: false })
+    setPayments((data ?? []) as typeof payments)
   }
 
   const displayName = [customer.first_name, customer.last_name].filter(Boolean).join(' ').trim()
@@ -130,9 +148,21 @@ export function CustomerDetailModal({
                   </div>
                 )}
                 {customer.phone && (
-                  <div className="flex items-center gap-2 text-brand-stone">
+                  <div className="flex items-center gap-2 text-brand-stone flex-wrap">
                     <Phone className="h-4 w-4" />
                     <span>{customer.phone}</span>
+                    {cleanPhoneForWhatsApp(customer.phone) && (
+                      <a
+                        href={`https://wa.me/${cleanPhoneForWhatsApp(customer.phone)}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 text-xs font-bold text-emerald-700 hover:bg-emerald-100 transition-colors"
+                        title="Chat on WhatsApp"
+                      >
+                        <MessageSquare size={11} />
+                        WhatsApp
+                      </a>
+                    )}
                   </div>
                 )}
                 {(customer.address || customer.city || customer.country) && (
@@ -163,8 +193,31 @@ export function CustomerDetailModal({
           )}
         </div>
 
+        <div>
+          <h4 className="font-semibold text-brand-ink flex items-center gap-2 mb-3"><Calendar className="h-4 w-4 text-brand-gold" />Previous Orders ({orders.length})</h4>
+          {orders.length === 0 ? <p className="text-sm text-brand-stone rounded-xl bg-brand-cream/30 border border-dashed border-brand-border p-4">No orders recorded for this customer yet.</p> : <div className="space-y-2">{orders.map((order) => <div key={order.id} className="rounded-xl border border-brand-border p-3 flex items-center justify-between gap-3"><div><p className="text-sm font-semibold text-brand-ink">#{order.order_number} · {order.design_description || 'Custom garment'}</p><p className="text-xs text-brand-stone mt-1">{order.estimated_delivery_date ? `Due ${new Date(`${order.estimated_delivery_date}T00:00:00`).toLocaleDateString()}` : 'No due date'} · {order.status.replace('_',' ')}</p></div><span className="text-xs font-bold text-brand-ink">₦{Number(order.total_price || 0).toLocaleString()}</span></div>)}</div>}
+        </div>
+
+        <div>
+          <h4 className="font-semibold text-brand-ink flex items-center gap-2 mb-3"><Calendar className="h-4 w-4 text-brand-gold" />Payment History ({payments.length})</h4>
+          {payments.length === 0 ? <p className="text-sm text-brand-stone rounded-xl bg-brand-cream/30 border border-dashed border-brand-border p-4">No payments recorded yet.</p> : <div className="space-y-2">{payments.map((payment) => <div key={payment.id} className="rounded-xl border border-brand-border p-3 flex justify-between"><span className="text-xs text-brand-stone">{new Date(payment.paid_at).toLocaleDateString()} · {payment.payment_method}</span><span className="text-sm font-bold text-emerald-700">₦{Number(payment.amount).toLocaleString()}</span></div>)}</div>}
+        </div>
+
         {/* Action Buttons */}
         <div className="flex flex-wrap gap-2">
+          {customer.phone && cleanPhoneForWhatsApp(customer.phone) && (
+            <Button
+              variant="outline"
+              onClick={() => {
+                const wa = cleanPhoneForWhatsApp(customer.phone)
+                window.open(`https://wa.me/${wa}`, '_blank')
+              }}
+              className="flex-1 sm:flex-none border-emerald-200 text-emerald-700 hover:bg-emerald-50"
+            >
+              <MessageSquare className="h-4 w-4 mr-2 text-emerald-600" />
+              Chat on WhatsApp
+            </Button>
+          )}
           <Button variant="outline" onClick={onEdit} className="flex-1 sm:flex-none">
             <Edit2 className="h-4 w-4 mr-2" />
             Edit Customer

@@ -3,13 +3,14 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useParams } from 'next/navigation'
 import { toast } from 'sonner'
-import { Boxes, PackagePlus, AlertCircle, Layers3, ArrowDownWideNarrow, DollarSign } from 'lucide-react'
+import { Boxes, PackagePlus, AlertCircle, Layers3, ArrowDownWideNarrow, PackageCheck } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
 import { DataTable } from '@/components/dashboard/shared/DataTable'
 import { ModalForm } from '@/components/dashboard/shared/ModalForm'
+import { formatNaira } from '@/lib/utils/format'
 
 type InventoryItem = {
   id: string
@@ -116,6 +117,18 @@ export function ShopInventoryPageContent() {
   const [newItem, setNewItem] = useState<ItemDraft>(EMPTY_DRAFT)
   const [editItem, setEditItem] = useState<ItemDraft>(EMPTY_DRAFT)
   const [selectedItem, setSelectedItem] = useState<InventoryItem | null>(null)
+  const [activeTab, setActiveTab] = useState<'all' | 'low_stock' | 'active' | 'inactive'>('all')
+
+  const displayedItems = useMemo(() => {
+    if (activeTab === 'low_stock') {
+      return items.filter(
+        (i) => i.is_active && Number(i.quantity_on_hand || 0) <= Number(i.reorder_level || 0),
+      )
+    }
+    if (activeTab === 'active') return items.filter((i) => i.is_active)
+    if (activeTab === 'inactive') return items.filter((i) => !i.is_active)
+    return items
+  }, [items, activeTab])
 
   const loadInventory = async () => {
     try {
@@ -260,11 +273,13 @@ export function ShopInventoryPageContent() {
       (item) => Number(item.quantity_on_hand || 0) <= Number(item.reorder_level || 0),
     )
 
+    const value = activeItems.reduce((sum, item) => sum + Number(item.quantity_on_hand || 0) * Number(item.cost_price || 0), 0)
     return {
       total: items.length,
       active: activeItems.length,
       lowStock: lowStockItems.length,
       quantity: totalQuantity,
+      value,
     }
   }, [items])
 
@@ -304,8 +319,8 @@ export function ShopInventoryPageContent() {
       hiddenOnMobile: true,
       cell: (item: InventoryItem) => (
         <div className="text-xs text-brand-stone space-y-0.5">
-          <p>Cost: {item.cost_price !== null ? `$${item.cost_price.toFixed(2)}` : 'N/A'}</p>
-          <p>Sell: {item.selling_price !== null ? `$${item.selling_price.toFixed(2)}` : 'N/A'}</p>
+          <p>Cost: {item.cost_price !== null ? formatNaira(item.cost_price) : 'N/A'}</p>
+          <p>Sell: {item.selling_price !== null ? formatNaira(item.selling_price) : 'N/A'}</p>
         </div>
       ),
     },
@@ -378,27 +393,74 @@ export function ShopInventoryPageContent() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-5 gap-3 lg:gap-4">
         <StatCard label="Total Items" value={stats.total} icon={Layers3} color="bg-sky-100 text-sky-700" />
         <StatCard label="Active Items" value={stats.active} icon={Boxes} color="bg-emerald-100 text-emerald-700" />
         <StatCard label="Low Stock" value={stats.lowStock} icon={ArrowDownWideNarrow} color="bg-amber-100 text-amber-700" />
-        <StatCard label="Units On Hand" value={stats.quantity} icon={DollarSign} color="bg-violet-100 text-violet-700" />
+        <StatCard label="Units On Hand" value={stats.quantity} icon={PackageCheck} color="bg-violet-100 text-violet-700" />
+        <StatCard label="Stock Value" value={formatNaira(stats.value)} icon={Layers3} color="bg-orange-100 text-brand-gold" />
       </div>
 
-      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6">
-        <div className="mb-4">
-          <h2 className="font-display text-lg text-brand-ink">All Inventory Items</h2>
-          <p className="text-xs text-brand-stone mt-0.5">
-            {items.length} item{items.length === 1 ? '' : 's'} in inventory
-          </p>
+      <div className="bg-white rounded-2xl border border-brand-border p-4 lg:p-6 space-y-4">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-brand-border">
+          <div>
+            <h2 className="font-display text-lg text-brand-ink">Stock & Materials</h2>
+            <p className="text-xs text-brand-stone mt-0.5">
+              {displayedItems.length} of {items.length} item{items.length === 1 ? '' : 's'} shown
+            </p>
+          </div>
+
+          {/* Filter tabs */}
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar">
+            <button
+              onClick={() => setActiveTab('all')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                activeTab === 'all'
+                  ? 'bg-brand-ink text-white shadow-xs'
+                  : 'bg-brand-cream/70 text-brand-stone hover:text-brand-ink hover:bg-brand-cream'
+              }`}
+            >
+              All Items ({items.length})
+            </button>
+            <button
+              onClick={() => setActiveTab('low_stock')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all flex items-center gap-1 ${
+                activeTab === 'low_stock'
+                  ? 'bg-amber-600 text-white shadow-xs'
+                  : 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+              }`}
+            >
+              ⚠️ Low Stock ({stats.lowStock})
+            </button>
+            <button
+              onClick={() => setActiveTab('active')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                activeTab === 'active'
+                  ? 'bg-brand-ink text-white shadow-xs'
+                  : 'bg-brand-cream/70 text-brand-stone hover:text-brand-ink hover:bg-brand-cream'
+              }`}
+            >
+              Active ({stats.active})
+            </button>
+            <button
+              onClick={() => setActiveTab('inactive')}
+              className={`px-3 py-1.5 rounded-full text-xs font-semibold whitespace-nowrap transition-all ${
+                activeTab === 'inactive'
+                  ? 'bg-brand-ink text-white shadow-xs'
+                  : 'bg-brand-cream/70 text-brand-stone hover:text-brand-ink hover:bg-brand-cream'
+              }`}
+            >
+              Inactive ({items.length - stats.active})
+            </button>
+          </div>
         </div>
 
         <DataTable
-          data={items}
+          data={displayedItems}
           columns={columns}
           keyExtractor={(item) => item.id}
           searchKeys={['name', 'sku', 'unit']}
-          emptyMessage="No inventory items yet. Add your first item to begin tracking stock."
+          emptyMessage="No inventory items match this view. Add items or switch filters."
           actions={actions}
         />
       </div>
@@ -467,42 +529,70 @@ export function ShopInventoryPageContent() {
             </div>
           </div>
 
+          <div>
+            <Label className="text-xs text-brand-stone mb-1.5 block">Common Tailoring Units</Label>
+            <div className="flex flex-wrap gap-1.5">
+              {['yards', 'meters', 'pieces', 'rolls', 'packs', 'buttons', 'zippers', 'lining'].map((u) => (
+                <button
+                  key={u}
+                  type="button"
+                  onClick={() => setNewItem((prev) => ({ ...prev, unit: u }))}
+                  className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
+                    newItem.unit === u
+                      ? 'bg-brand-ink text-white border-brand-ink shadow-xs'
+                      : 'bg-brand-cream/60 border-brand-border text-brand-ink hover:border-brand-gold'
+                  }`}
+                >
+                  {u}
+                </button>
+              ))}
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label>Unit</Label>
+              <Label>Unit of Measure *</Label>
               <Input
                 value={newItem.unit}
                 onChange={(event) =>
                   setNewItem((prev) => ({ ...prev, unit: event.target.value }))
                 }
-                placeholder="pcs"
+                placeholder="yards, pcs..."
               />
             </div>
             <div className="space-y-2">
-              <Label>Cost Price</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={newItem.costPrice}
-                onChange={(event) =>
-                  setNewItem((prev) => ({ ...prev, costPrice: event.target.value }))
-                }
-                placeholder="0.00"
-              />
+              <Label>Cost Price (₦)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone font-semibold text-xs">₦</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newItem.costPrice}
+                  onChange={(event) =>
+                    setNewItem((prev) => ({ ...prev, costPrice: event.target.value }))
+                  }
+                  placeholder="0.00"
+                  className="pl-7"
+                />
+              </div>
             </div>
             <div className="space-y-2">
-              <Label>Selling Price</Label>
-              <Input
-                type="number"
-                min="0"
-                step="0.01"
-                value={newItem.sellingPrice}
-                onChange={(event) =>
-                  setNewItem((prev) => ({ ...prev, sellingPrice: event.target.value }))
-                }
-                placeholder="0.00"
-              />
+              <Label>Selling Price (₦)</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone font-semibold text-xs">₦</span>
+                <Input
+                  type="number"
+                  min="0"
+                  step="0.01"
+                  value={newItem.sellingPrice}
+                  onChange={(event) =>
+                    setNewItem((prev) => ({ ...prev, sellingPrice: event.target.value }))
+                  }
+                  placeholder="0.00"
+                  className="pl-7"
+                />
+              </div>
             </div>
           </div>
 
@@ -514,7 +604,7 @@ export function ShopInventoryPageContent() {
               onChange={(event) =>
                 setNewItem((prev) => ({ ...prev, description: event.target.value }))
               }
-              placeholder="Optional notes about this inventory item."
+              placeholder="Optional notes about this fabric, thread colour, quality or supplier..."
             />
           </div>
         </div>
@@ -528,7 +618,7 @@ export function ShopInventoryPageContent() {
             if (!open) setSelectedItem(null)
           }}
           title={`Edit ${selectedItem.name}`}
-          description="Update this inventory item."
+          description="Update stock levels and unit costs"
           onSubmit={handleSaveEdit}
           isSubmitting={saving}
           submitLabel="Save Changes"
@@ -581,9 +671,29 @@ export function ShopInventoryPageContent() {
               </div>
             </div>
 
+            <div>
+              <Label className="text-xs text-brand-stone mb-1.5 block">Common Tailoring Units</Label>
+              <div className="flex flex-wrap gap-1.5">
+                {['yards', 'meters', 'pieces', 'rolls', 'packs', 'buttons', 'zippers', 'lining'].map((u) => (
+                  <button
+                    key={u}
+                    type="button"
+                    onClick={() => setEditItem((prev) => ({ ...prev, unit: u }))}
+                    className={`px-2.5 py-1 rounded-lg border text-[11px] font-medium transition-colors ${
+                      editItem.unit === u
+                        ? 'bg-brand-ink text-white border-brand-ink shadow-xs'
+                        : 'bg-brand-cream/60 border-brand-border text-brand-ink hover:border-brand-gold'
+                    }`}
+                  >
+                    {u}
+                  </button>
+                ))}
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <div className="space-y-2">
-                <Label>Unit</Label>
+                <Label>Unit of Measure *</Label>
                 <Input
                   value={editItem.unit}
                   onChange={(event) =>
@@ -592,28 +702,36 @@ export function ShopInventoryPageContent() {
                 />
               </div>
               <div className="space-y-2">
-                <Label>Cost Price</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editItem.costPrice}
-                  onChange={(event) =>
-                    setEditItem((prev) => ({ ...prev, costPrice: event.target.value }))
-                  }
-                />
+                <Label>Cost Price (₦)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone font-semibold text-xs">₦</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editItem.costPrice}
+                    onChange={(event) =>
+                      setEditItem((prev) => ({ ...prev, costPrice: event.target.value }))
+                    }
+                    className="pl-7"
+                  />
+                </div>
               </div>
               <div className="space-y-2">
-                <Label>Selling Price</Label>
-                <Input
-                  type="number"
-                  min="0"
-                  step="0.01"
-                  value={editItem.sellingPrice}
-                  onChange={(event) =>
-                    setEditItem((prev) => ({ ...prev, sellingPrice: event.target.value }))
-                  }
-                />
+                <Label>Selling Price (₦)</Label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-brand-stone font-semibold text-xs">₦</span>
+                  <Input
+                    type="number"
+                    min="0"
+                    step="0.01"
+                    value={editItem.sellingPrice}
+                    onChange={(event) =>
+                      setEditItem((prev) => ({ ...prev, sellingPrice: event.target.value }))
+                    }
+                    className="pl-7"
+                  />
+                </div>
               </div>
             </div>
 

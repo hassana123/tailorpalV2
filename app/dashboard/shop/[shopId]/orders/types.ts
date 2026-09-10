@@ -17,7 +17,14 @@ export interface Order {
   estimated_delivery_date?: string | null
   total_price?: number | null
   notes?: string | null
+  priority?: 'low' | 'normal' | 'high' | 'urgent'
   catalog_request_id?: string | null
+  fitting_date?: string | null
+  fitting_status?: string | null
+  fitting_notes?: string | null
+  delivery_date?: string | null
+  delivery_status?: string | null
+  delivery_notes?: string | null
   created_at: string
   updated_at?: string
   customers?: CustomerOption | null

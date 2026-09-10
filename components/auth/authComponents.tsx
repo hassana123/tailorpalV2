@@ -38,7 +38,7 @@ export function GoogleOAuthButton({ onClick, isLoading, disabled, label, loading
       type="button"
       onClick={onClick}
       disabled={disabled || isLoading}
-      className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-gray-200 bg-white text-gray-700 text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 hover:shadow-sm transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+      className="w-full flex items-center justify-center gap-3 h-11 rounded-xl border border-brand-border bg-white text-brand-ink text-sm font-semibold hover:bg-brand-cream/60 hover:border-brand-stone/40 hover:shadow-xs transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
     >
       {isLoading ? <Spinner /> : <GoogleIcon />}
       {isLoading ? loadingLabel : label}
@@ -51,10 +51,10 @@ export function OrDivider({ label = 'or continue with email' }: { label?: string
   return (
     <div className="relative my-6">
       <div className="absolute inset-0 flex items-center">
-        <div className="w-full border-t border-gray-100" />
+        <div className="w-full border-t border-brand-border" />
       </div>
       <div className="relative flex justify-center">
-        <span className="bg-white px-3 text-xs text-gray-400 font-medium">{label}</span>
+        <span className="bg-white px-3 text-xs text-brand-stone font-medium">{label}</span>
       </div>
     </div>
   )
@@ -63,7 +63,7 @@ export function OrDivider({ label = 'or continue with email' }: { label?: string
 // ─── Error alert ─────────────────────────────────────────────────────────────
 export function AuthError({ message }: { message: string }) {
   return (
-    <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-100 mb-4">
+    <div className="flex items-start gap-2.5 p-3.5 rounded-xl bg-red-50 border border-red-200 mb-4">
       <svg className="w-4 h-4 text-red-500 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
         <circle cx="12" cy="12" r="10" />
         <line x1="12" y1="8" x2="12" y2="12" />
@@ -84,7 +84,7 @@ export function PrimaryButton({ isLoading, loadingLabel, children, className = '
     <button
       {...props}
       disabled={props.disabled || isLoading}
-      className={`w-full h-11 rounded-xl bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-bold tracking-wide hover:from-violet-700 hover:to-purple-700 hover:shadow-lg hover:shadow-violet-200 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${className}`}
+      className={`w-full h-11 rounded-xl bg-brand-ink text-white text-sm font-bold tracking-wide hover:bg-brand-charcoal hover:shadow-brand focus:ring-2 focus:ring-brand-gold/30 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-brand ${className}`}
     >
       {isLoading ? (
         <>
@@ -101,7 +101,7 @@ export function GhostButton({ children, className = '', ...props }: React.Button
   return (
     <button
       {...props}
-      className={`w-full h-11 rounded-xl border border-gray-200 text-gray-600 text-sm font-semibold hover:bg-gray-50 hover:border-gray-300 transition-all duration-200 flex items-center justify-center gap-2 ${className}`}
+      className={`w-full h-11 rounded-xl border border-brand-border text-brand-charcoal text-sm font-semibold hover:bg-brand-cream hover:border-brand-stone/40 transition-all duration-200 flex items-center justify-center gap-2 ${className}`}
     >
       {children}
     </button>
@@ -112,22 +112,22 @@ export function GhostButton({ children, className = '', ...props }: React.Button
 export function TrustBadges() {
   return (
     <div className="mt-8 flex items-center justify-center gap-5">
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+      <div className="flex items-center gap-1.5 text-xs text-brand-stone font-medium">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <rect x="3" y="11" width="18" height="11" rx="2" />
           <path d="M7 11V7a5 5 0 0110 0v4" />
         </svg>
         Encrypted
       </div>
-      <div className="w-px h-3.5 bg-gray-200" />
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+      <div className="w-px h-3.5 bg-brand-border" />
+      <div className="flex items-center gap-1.5 text-xs text-brand-stone font-medium">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
         </svg>
         Privacy first
       </div>
-      <div className="w-px h-3.5 bg-gray-200" />
-      <div className="flex items-center gap-1.5 text-xs text-gray-400 font-medium">
+      <div className="w-px h-3.5 bg-brand-border" />
+      <div className="flex items-center gap-1.5 text-xs text-brand-stone font-medium">
         <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
           <polyline points="20 6 9 17 4 12" />
         </svg>
@@ -144,7 +144,7 @@ export function EyeToggle({ visible, onToggle }: { visible: boolean; onToggle: (
       type="button"
       onClick={onToggle}
       tabIndex={-1}
-      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+      className="absolute right-3 top-1/2 -translate-y-1/2 text-brand-stone/60 hover:text-brand-ink transition-colors"
       aria-label={visible ? 'Hide password' : 'Show password'}
     >
       {visible ? (
@@ -165,9 +165,9 @@ export function EyeToggle({ visible, onToggle }: { visible: boolean; onToggle: (
 // ─── Auth page header ─────────────────────────────────────────────────────────
 export function AuthHeader({ title, subtitle }: { title: string; subtitle: string }) {
   return (
-    <div className="mb-8">
-      <h1 className="text-[26px] font-bold text-gray-900 mb-1.5 tracking-tight">{title}</h1>
-      <p className="text-sm text-gray-500">{subtitle}</p>
+    <div className="mb-6">
+      <h1 className="font-display text-2xl lg:text-3xl text-brand-ink mb-1 tracking-tight">{title}</h1>
+      <p className="text-xs sm:text-sm text-brand-stone">{subtitle}</p>
     </div>
   )
 }
@@ -177,7 +177,7 @@ export function Field({ label, htmlFor, children, action }: { label: string; htm
   return (
     <div className="space-y-1.5">
       <div className="flex items-center justify-between">
-        <label htmlFor={htmlFor} className="text-sm font-semibold text-gray-700">{label}</label>
+        <label htmlFor={htmlFor} className="text-[11px] font-bold text-brand-stone uppercase tracking-wider">{label}</label>
         {action}
       </div>
       {children}
@@ -186,4 +186,4 @@ export function Field({ label, htmlFor, children, action }: { label: string; htm
 }
 
 // ─── Shared input class ───────────────────────────────────────────────────────
-export const inputCls = 'h-11 w-full rounded-xl border border-gray-200 bg-gray-50 focus:bg-white px-4 text-sm font-medium text-gray-800 placeholder:text-gray-400 outline-none focus:border-violet-500 focus:ring-2 focus:ring-violet-100 transition-all duration-200'
+export const inputCls = 'h-11 w-full rounded-xl border border-brand-border bg-brand-cream/30 focus:bg-white px-4 text-sm font-medium text-brand-ink placeholder:text-brand-stone/50 outline-none focus:border-brand-ink focus:ring-2 focus:ring-brand-gold/20 transition-all duration-200'

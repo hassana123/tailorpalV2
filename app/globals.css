@@ -79,8 +79,11 @@
 }
 
 @layer base {
-  * { @apply border-border; }
-  html { scroll-behavior: smooth; }
+  html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+    max-width: 100%;
+  }
 
   body {
     @apply bg-background text-foreground antialiased;
@@ -88,6 +91,10 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     background-color: #FAF9F7;
+    overflow-x: hidden;
+    max-width: 100%;
+    margin: 0;
+    padding: 0;
   }
 
   h1, h2, h3, h4 {

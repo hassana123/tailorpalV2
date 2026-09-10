@@ -25,6 +25,7 @@ import {
   User,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
+import { formatNaira } from '@/lib/utils/format'
 
 // ─── Types (unchanged) ────────────────────────────────────────────────────────
 
@@ -499,7 +500,7 @@ export function ShopProfileContent({
                         <div className="flex items-start justify-between gap-2 mb-1">
                           <p className="font-semibold text-brand-ink text-sm">{item.name}</p>
                           <p className="text-sm font-bold text-brand-gold whitespace-nowrap">
-                            ${item.price.toFixed(2)}
+                            {formatNaira(item.price)}
                           </p>
                         </div>
                         {item.description && (

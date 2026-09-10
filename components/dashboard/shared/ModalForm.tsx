@@ -41,58 +41,67 @@ export function ModalForm({
   const maxWidthClasses = {
     sm: 'sm:max-w-sm',
     md: 'sm:max-w-md',
-    lg: 'sm:max-w-lg',
-    xl: 'sm:max-w-xl',
-    '2xl': 'sm:max-w-2xl',
+    lg: 'sm:max-w-xl md:max-w-2xl',
+    xl: 'sm:max-w-2xl md:max-w-3xl',
+    '2xl': 'sm:max-w-3xl md:max-w-4xl',
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent
+        hideCloseButton={true}
         className={cn(
-          'sm:max-w-lg max-h-[90vh] overflow-y-auto p-0 gap-0',
+          'w-[calc(100vw-1.5rem)] sm:w-full max-h-[92vh] flex flex-col p-0 gap-0 overflow-hidden rounded-3xl bg-white border border-brand-border shadow-2xl',
           maxWidthClasses[maxWidth]
         )}
       >
-        <DialogHeader className="px-6 py-4 border-b border-brand-border sticky top-0 bg-white z-10">
-          <div className="flex items-center justify-between">
-            <div>
-              <DialogTitle className="text-lg font-display text-brand-ink">
-                {title}
-              </DialogTitle>
-              {description && (
-                <DialogDescription className="text-sm text-brand-stone mt-1">
-                  {description}
-                </DialogDescription>
-              )}
-            </div>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-8 w-8 rounded-full"
-              onClick={() => onOpenChange(false)}
-            >
-              <X className="h-4 w-4" />
-            </Button>
+        {/* Fixed Header with Title, Description and Top-Right Cancel Button */}
+        <DialogHeader className="px-5 sm:px-6 py-4 border-b border-brand-border bg-white flex-shrink-0 relative pr-14 text-left">
+          <div className="min-w-0 flex-1">
+            <DialogTitle className="text-base sm:text-lg font-display text-brand-ink truncate">
+              {title}
+            </DialogTitle>
+            {description && (
+              <DialogDescription className="text-xs sm:text-sm text-brand-stone mt-0.5 line-clamp-2">
+                {description}
+              </DialogDescription>
+            )}
           </div>
+
+          {/* Small Cancel Icon Button at Top Right */}
+          <button
+            type="button"
+            onClick={() => onOpenChange(false)}
+            className="absolute right-4 top-4 z-20 h-8 w-8 rounded-full flex items-center justify-center text-brand-stone hover:text-brand-ink hover:bg-brand-cream border border-brand-border/60 hover:border-brand-ink/20 transition-all focus:outline-none focus:ring-2 focus:ring-brand-gold cursor-pointer"
+            aria-label="Close modal"
+            title="Close"
+          >
+            <X className="h-4 w-4" />
+          </button>
         </DialogHeader>
 
-        <div className="px-6 py-4">{children}</div>
+        {/* Scrollable Content Body: ONLY vertical overflow, NEVER horizontal */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 sm:px-6 py-5 w-full min-w-0 max-w-full">
+          {children}
+        </div>
 
+        {/* Fixed Footer */}
         {!hideFooter && onSubmit && (
-          <div className="px-6 py-4 border-t border-brand-border flex flex-col-reverse sm:flex-row gap-2 sm:justify-end sticky bottom-0 bg-white z-10">
+          <div className="px-5 sm:px-6 py-3.5 border-t border-brand-border bg-brand-cream/30 flex-shrink-0 flex flex-col-reverse sm:flex-row gap-2 sm:justify-end">
             <Button
+              type="button"
               variant="outline"
               onClick={() => onOpenChange(false)}
               disabled={isSubmitting}
-              className="w-full sm:w-auto"
+              className="w-full sm:w-auto h-9 text-xs rounded-xl"
             >
               {cancelLabel}
             </Button>
             <Button
+              type="button"
               onClick={onSubmit}
               disabled={isSubmitting}
-              className="w-full sm:w-auto bg-brand-ink hover:bg-brand-charcoal"
+              className="w-full sm:w-auto h-9 text-xs bg-brand-ink hover:bg-brand-charcoal text-white rounded-xl shadow-xs"
             >
               {isSubmitting ? 'Saving...' : submitLabel}
             </Button>

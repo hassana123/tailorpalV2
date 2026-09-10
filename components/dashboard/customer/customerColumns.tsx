@@ -1,7 +1,8 @@
 'use client'
 
-import { Mail, Phone, MapPin } from 'lucide-react'
+import { Mail, Phone, MapPin, MessageSquare } from 'lucide-react'
 import { Customer } from '@/app/dashboard/shop/[shopId]/customers/types'
+import { cleanPhoneForWhatsApp } from '@/lib/utils/format'
 
 // ─── Customer Table Hook ─────────────────────────────────────────────────────
 
@@ -51,22 +52,38 @@ export function useCustomerColumns({
     {
       key: 'contact',
       header: 'Contact',
-      cell: (customer: Customer) => (
-        <div className="space-y-1">
-          {customer.email && (
-            <div className="flex items-center gap-1.5 text-xs text-brand-stone">
-              <Mail className="h-3 w-3 flex-shrink-0" />
-              <span className="truncate">{customer.email}</span>
-            </div>
-          )}
-          {customer.phone && (
-            <div className="flex items-center gap-1.5 text-xs text-brand-stone">
-              <Phone className="h-3 w-3 flex-shrink-0" />
-              <span>{customer.phone}</span>
-            </div>
-          )}
-        </div>
-      ),
+      cell: (customer: Customer) => {
+        const waNumber = customer.phone ? cleanPhoneForWhatsApp(customer.phone) : null
+        return (
+          <div className="space-y-1">
+            {customer.email && (
+              <div className="flex items-center gap-1.5 text-xs text-brand-stone">
+                <Mail className="h-3 w-3 flex-shrink-0" />
+                <span className="truncate">{customer.email}</span>
+              </div>
+            )}
+            {customer.phone && (
+              <div className="flex items-center gap-1.5 text-xs text-brand-stone flex-wrap">
+                <Phone className="h-3 w-3 flex-shrink-0" />
+                <span>{customer.phone}</span>
+                {waNumber && (
+                  <a
+                    href={`https://wa.me/${waNumber}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-emerald-50 text-[10px] font-bold text-emerald-700 hover:bg-emerald-100 transition-colors ml-1"
+                    title="Chat on WhatsApp"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MessageSquare size={10} />
+                    WhatsApp
+                  </a>
+                )}
+              </div>
+            )}
+          </div>
+        )
+      },
       hiddenOnMobile: true,
     },
     {
@@ -84,28 +101,40 @@ export function useCustomerColumns({
     },
   ]
 
-  const actions = (customer: Customer) => [
-    {
-      label: 'View Details',
-      onClick: () => onViewDetails(customer),
-      variant: 'default' as const,
-    },
-    {
-      label: 'Edit',
-      onClick: () => onEdit(customer),
-      variant: 'outline' as const,
-    },
-    {
-      label: 'Add Measurements',
-      onClick: () => onAddMeasurements(customer),
-      variant: 'outline' as const,
-    },
-    {
-      label: 'Delete',
-      onClick: () => onDelete(customer),
-      variant: 'destructive' as const,
-    },
-  ]
+  const actions = (customer: Customer) => {
+    const wa = customer.phone ? cleanPhoneForWhatsApp(customer.phone) : null
+    return [
+      {
+        label: 'View Details',
+        onClick: () => onViewDetails(customer),
+        variant: 'default' as const,
+      },
+      ...(wa
+        ? [
+            {
+              label: 'Chat on WhatsApp',
+              onClick: () => window.open(`https://wa.me/${wa}`, '_blank'),
+              variant: 'outline' as const,
+            },
+          ]
+        : []),
+      {
+        label: 'Edit',
+        onClick: () => onEdit(customer),
+        variant: 'outline' as const,
+      },
+      {
+        label: 'Add Measurements',
+        onClick: () => onAddMeasurements(customer),
+        variant: 'outline' as const,
+      },
+      {
+        label: 'Delete',
+        onClick: () => onDelete(customer),
+        variant: 'destructive' as const,
+      },
+    ]
+  }
 
   return { columns, actions }
 }

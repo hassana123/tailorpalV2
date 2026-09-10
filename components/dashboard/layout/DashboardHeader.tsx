@@ -1,7 +1,8 @@
 'use client'
 
-import { Search, Bell, ChevronDown, Menu } from 'lucide-react'
+import { Search, ChevronDown, Menu } from 'lucide-react'
 import { useState } from 'react'
+import { NotificationFeed } from './NotificationFeed'
 
 interface DashboardHeaderProps {
   subtitle: string
@@ -75,14 +76,7 @@ export function DashboardHeader({
           <Search size={15} />
         </button>
 
-        {/* Notification bell */}
-        <button className="relative w-9 h-9 rounded-xl bg-brand-cream border border-brand-border flex items-center justify-center text-brand-stone hover:text-brand-ink hover:bg-white hover:border-brand-ink/20 transition-all">
-          <Bell size={15} />
-          {/* Badge */}
-          <span className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-brand-gold text-white text-[9px] font-bold flex items-center justify-center">
-            3
-          </span>
-        </button>
+        <NotificationFeed />
 
         {/* Profile pill */}
         <button

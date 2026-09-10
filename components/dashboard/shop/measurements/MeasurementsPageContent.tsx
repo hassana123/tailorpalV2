@@ -28,7 +28,11 @@ import {
   ChevronDown,
   ChevronUp,
   X,
+  Sparkles,
+  MessageCircle,
 } from 'lucide-react'
+import { GARMENT_PRESETS, GarmentPreset } from '@/lib/constants/presets'
+import { createWhatsAppUrl, getMeasurementsSummaryMessage } from '@/lib/utils/whatsapp'
 import { cn } from '@/lib/utils'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -124,75 +128,107 @@ function StatCard({
 function MeasurementPicker({
   selectedMeasurements,
   onToggle,
+  onApplyPreset,
 }: {
   selectedMeasurements: Record<string, string>
   onToggle: (key: string) => void
+  onApplyPreset?: (preset: GarmentPreset) => void
 }) {
   const [showPicker, setShowPicker] = useState(false)
   const [expandedCategories, setExpandedCategories] = useState<Record<string, boolean>>({})
 
   return (
-    <div>
-      <Button
-        type="button"
-        variant="outline"
-        className="w-full justify-between"
-        onClick={() => setShowPicker((p) => !p)}
-      >
-        <span className="flex items-center gap-2">
-          <Plus className="h-4 w-4" />
-          Choose from standard measurements
-          {Object.keys(selectedMeasurements).length > 0 && (
-            <Badge variant="secondary">{Object.keys(selectedMeasurements).length} selected</Badge>
-          )}
-        </span>
-        {showPicker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
-      </Button>
-
-      {showPicker && (
-        <div className="border border-brand-border rounded-xl p-4 mt-2 space-y-3 bg-brand-cream/30">
-          {MEASUREMENT_CATEGORIES.map((category) => {
-            const items = STANDARD_MEASUREMENTS.filter((m) => m.category === category)
-            const isExpanded = expandedCategories[category] !== false
-            return (
-              <div key={category}>
-                <button
-                  type="button"
-                  className="flex items-center justify-between w-full text-sm font-semibold py-1 hover:text-brand-gold transition-colors"
-                  onClick={() =>
-                    setExpandedCategories((prev) => ({ ...prev, [category]: !isExpanded }))
-                  }
-                >
-                  {category}
-                  {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
-                </button>
-                {isExpanded && (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-2">
-                    {items.map((m) => {
-                      const isSelected = m.key in selectedMeasurements
-                      return (
-                        <button
-                          key={m.key}
-                          type="button"
-                          onClick={() => onToggle(m.key)}
-                          className={cn(
-                            'text-xs px-3 py-2 rounded-lg border text-left transition-all',
-                            isSelected
-                              ? 'bg-brand-ink text-white border-brand-ink'
-                              : 'bg-white hover:bg-brand-cream border-brand-border'
-                          )}
-                        >
-                          {m.label}
-                        </button>
-                      )
-                    })}
-                  </div>
-                )}
+    <div className="space-y-4">
+      {/* 1-Click Garment Presets Bar */}
+      <div>
+        <p className="text-xs font-bold text-brand-ink uppercase tracking-wider mb-2 flex items-center gap-1.5">
+          <Sparkles size={13} className="text-brand-gold" />
+          Quick Garment Presets (1-Tap Auto-Selection)
+        </p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+          {GARMENT_PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              type="button"
+              onClick={() => onApplyPreset?.(preset)}
+              className="p-2.5 rounded-xl border border-brand-border bg-white hover:border-brand-gold hover:bg-brand-cream/60 text-left transition-all group"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-xl flex-shrink-0">{preset.icon}</span>
+                <div className="min-w-0 flex-1">
+                  <p className="text-xs font-bold text-brand-ink group-hover:text-brand-gold transition-colors truncate">
+                    {preset.name.split('/')[0]}
+                  </p>
+                  <p className="text-[10px] text-brand-stone truncate">{preset.recommendedFields.length} measures</p>
+                </div>
               </div>
-            )
-          })}
+            </button>
+          ))}
         </div>
-      )}
+      </div>
+
+      <div>
+        <Button
+          type="button"
+          variant="outline"
+          className="w-full justify-between rounded-xl h-11 border-brand-border hover:bg-brand-cream"
+          onClick={() => setShowPicker((p) => !p)}
+        >
+          <span className="flex items-center gap-2 text-xs font-semibold">
+            <Plus className="h-4 w-4" />
+            Pick from All Standard Anatomical Measurements
+            {Object.keys(selectedMeasurements).length > 0 && (
+              <Badge variant="secondary" className="ml-1 font-bold">{Object.keys(selectedMeasurements).length} chosen</Badge>
+            )}
+          </span>
+          {showPicker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+        </Button>
+
+        {showPicker && (
+          <div className="border border-brand-border rounded-2xl p-4 mt-2 space-y-3 bg-brand-cream/40">
+            {MEASUREMENT_CATEGORIES.map((category) => {
+              const items = STANDARD_MEASUREMENTS.filter((m) => m.category === category)
+              const isExpanded = expandedCategories[category] !== false
+              return (
+                <div key={category}>
+                  <button
+                    type="button"
+                    className="flex items-center justify-between w-full text-xs font-bold uppercase tracking-wider py-1.5 text-brand-stone hover:text-brand-ink transition-colors"
+                    onClick={() =>
+                      setExpandedCategories((prev) => ({ ...prev, [category]: !isExpanded }))
+                    }
+                  >
+                    <span>{category}</span>
+                    {isExpanded ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
+                  {isExpanded && (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mt-1.5">
+                      {items.map((m) => {
+                        const isSelected = m.key in selectedMeasurements
+                        return (
+                          <button
+                            key={m.key}
+                            type="button"
+                            onClick={() => onToggle(m.key)}
+                            className={cn(
+                              'text-xs px-3 py-2 rounded-xl border text-left transition-all font-medium',
+                              isSelected
+                                ? 'bg-brand-ink text-white border-brand-ink shadow-sm'
+                                : 'bg-white hover:bg-brand-cream border-brand-border text-brand-charcoal'
+                            )}
+                          >
+                            {m.label}
+                          </button>
+                        )
+                      })}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
+        )}
+      </div>
     </div>
   )
 }
@@ -779,12 +815,24 @@ export function MeasurementsPageContent() {
           <MeasurementPicker
             selectedMeasurements={selectedMeasurements}
             onToggle={toggleMeasurementField}
+            onApplyPreset={(preset) => {
+              setSelectedMeasurements((prev) => {
+                const next = { ...prev }
+                preset.recommendedFields.forEach((fieldKey) => {
+                  if (!(fieldKey in next)) {
+                    next[fieldKey] = ''
+                  }
+                })
+                return next
+              })
+              toast.success(`Loaded ${preset.name} measurement fields!`)
+            }}
           />
 
           {/* Selected measurement value inputs */}
           {Object.keys(selectedMeasurements).length > 0 && (
             <div>
-              <p className="text-sm font-medium text-brand-ink mb-3">Enter values (cm)</p>
+              <p className="text-sm font-medium text-brand-ink mb-3">Enter values (inches &quot;)</p>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 {Object.keys(selectedMeasurements).map((key) => {
                   const def = STANDARD_MEASUREMENTS.find((m) => m.key === key)
@@ -965,18 +1013,28 @@ export function MeasurementsPageContent() {
 
 function MeasurementDetails({ measurement }: { measurement: Measurement }) {
   const entries = sortMeasurementEntries(Object.entries(extractMeasurementMaps(measurement).all))
+  const customerName = `${measurement.customers?.first_name ?? ''} ${measurement.customers?.last_name ?? ''}`.trim() || 'Client'
+  const customerPhone = (measurement.customers as { phone?: string | null } | null)?.phone
+
+  const handleShareWhatsApp = () => {
+    const rawMap = Object.fromEntries(entries)
+    const msg = getMeasurementsSummaryMessage(customerName, 'TailorPal Atelier', rawMap, measurement.notes)
+    const url = createWhatsAppUrl(customerPhone, msg)
+    window.open(url, '_blank', 'noopener,noreferrer')
+    toast.success(`Opening WhatsApp for ${customerName}`)
+  }
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <span className="text-sm text-brand-stone">
-          {new Date(measurement.created_at).toLocaleString()}
+        <span className="text-xs text-brand-stone font-medium">
+          Recorded: {new Date(measurement.created_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
         </span>
         <Badge
           className={cn(
             measurement.status === 'completed'
-              ? 'bg-green-100 text-green-800'
-              : 'bg-yellow-100 text-yellow-800'
+              ? 'bg-emerald-100 text-emerald-800 border-emerald-200'
+              : 'bg-amber-100 text-amber-800 border-amber-200'
           )}
         >
           {measurement.status}
@@ -984,13 +1042,13 @@ function MeasurementDetails({ measurement }: { measurement: Measurement }) {
       </div>
 
       {entries.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
           {entries.map(([key, value]) => (
-            <div key={key} className="bg-brand-cream/50 rounded-lg px-2 py-1.5">
-              <span className="text-[10px] text-brand-stone uppercase block truncate">
+            <div key={key} className="bg-brand-cream/60 rounded-xl p-2.5 border border-brand-border">
+              <span className="text-[10px] text-brand-stone font-bold uppercase tracking-wider block truncate">
                 {formatMeasurementLabel(key)}
               </span>
-              <span className="text-sm font-semibold text-brand-ink">{value} cm</span>
+              <span className="font-display text-base font-bold text-brand-ink">{value}&quot;</span>
             </div>
           ))}
         </div>
@@ -999,8 +1057,20 @@ function MeasurementDetails({ measurement }: { measurement: Measurement }) {
       )}
 
       {measurement.notes && (
-        <p className="text-xs text-brand-stone pt-2 border-t border-brand-border">{measurement.notes}</p>
+        <div className="bg-brand-cream/40 rounded-xl p-3 border border-brand-border">
+          <span className="text-[10px] font-bold text-brand-stone uppercase tracking-wider block mb-1">Notes</span>
+          <p className="text-xs text-brand-charcoal leading-relaxed whitespace-pre-line">{measurement.notes}</p>
+        </div>
       )}
+
+      <button
+        type="button"
+        onClick={handleShareWhatsApp}
+        className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm mt-3"
+      >
+        <MessageCircle size={15} />
+        Send Measurements to Client via WhatsApp
+      </button>
     </div>
   )
 }

@@ -112,7 +112,7 @@ export default function LoginPage() {
           label="Password"
           htmlFor="password"
           action={
-            <Link href="#" className="text-xs font-semibold text-violet-600 hover:text-violet-800 transition-colors">
+            <Link href="#" className="text-xs font-semibold text-brand-gold hover:text-[#c06d22] transition-colors">
               Forgot password?
             </Link>
           }
@@ -138,9 +138,9 @@ export default function LoginPage() {
         </div>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
+      <p className="mt-6 text-center text-sm text-brand-stone">
         Don&apos;t have an account?{' '}
-        <Link href="/auth/sign-up" className="font-bold text-violet-600 hover:text-violet-800 transition-colors">
+        <Link href="/auth/sign-up" className="font-bold text-brand-gold hover:text-[#c06d22] transition-colors">
           Create one free
         </Link>
       </p>

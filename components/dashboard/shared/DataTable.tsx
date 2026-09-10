@@ -25,6 +25,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu'
 import { TableAction } from '@/components/dashboard/shared/table-actions'
@@ -151,21 +152,34 @@ export function DataTable<T>({
         {actions && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
-              <Button variant="ghost" size="sm" className="h-8 w-8 p-0">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 w-8 p-0 rounded-xl border border-brand-border/60 hover:border-brand-ink/20 hover:bg-brand-cream text-brand-stone hover:text-brand-ink transition-all"
+                aria-label="Actions menu"
+              >
                 <MoreHorizontal className="h-4 w-4" />
               </Button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end">
+            <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl border border-brand-border bg-white shadow-xl">
               {actions(item).map((action, idx) => (
-                <DropdownMenuItem
-                  key={idx}
-                  onClick={action.onClick}
-                  className={cn(
-                    action.variant === 'destructive' && 'text-red-600 focus:text-red-600'
-                  )}
-                >
-                  {action.label}
-                </DropdownMenuItem>
+                <div key={idx}>
+                  {action.divider && <DropdownMenuSeparator className="my-1 bg-brand-border/60" />}
+                  <DropdownMenuItem
+                    onClick={action.onClick}
+                    className={cn(
+                      'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-colors',
+                      action.variant === 'destructive'
+                        ? 'text-red-600 focus:bg-red-50 focus:text-red-700'
+                        : action.variant === 'success'
+                        ? 'text-emerald-700 focus:bg-emerald-50 focus:text-emerald-800'
+                        : 'text-brand-charcoal hover:text-brand-ink focus:bg-brand-cream focus:text-brand-ink'
+                    )}
+                  >
+                    {action.icon && <span className="flex-shrink-0 text-current">{action.icon}</span>}
+                    <span className="truncate">{action.label}</span>
+                  </DropdownMenuItem>
+                </div>
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
@@ -280,27 +294,35 @@ export function DataTable<T>({
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="h-8 w-8 p-0"
+                            className="h-8 w-8 p-0 rounded-xl border border-brand-border/60 hover:border-brand-ink/20 hover:bg-brand-cream text-brand-stone hover:text-brand-ink transition-all"
                             onClick={(e) => e.stopPropagation()}
+                            aria-label="Actions menu"
                           >
                             <MoreHorizontal className="h-4 w-4" />
                           </Button>
                         </DropdownMenuTrigger>
-                        <DropdownMenuContent align="end">
+                        <DropdownMenuContent align="end" className="w-56 p-1.5 rounded-2xl border border-brand-border bg-white shadow-xl">
                           {actions(item).map((action, idx) => (
-                            <DropdownMenuItem
-                              key={idx}
-                              onClick={(e) => {
-                                e.stopPropagation()
-                                action.onClick()
-                              }}
-                              className={cn(
-                                action.variant === 'destructive' &&
-                                  'text-red-600 focus:text-red-600'
-                              )}
-                            >
-                              {action.label}
-                            </DropdownMenuItem>
+                            <div key={idx}>
+                              {action.divider && <DropdownMenuSeparator className="my-1 bg-brand-border/60" />}
+                              <DropdownMenuItem
+                                onClick={(e) => {
+                                  e.stopPropagation()
+                                  action.onClick()
+                                }}
+                                className={cn(
+                                  'flex items-center gap-2.5 px-3 py-2 text-xs font-semibold rounded-xl cursor-pointer transition-colors',
+                                  action.variant === 'destructive'
+                                    ? 'text-red-600 focus:bg-red-50 focus:text-red-700'
+                                    : action.variant === 'success'
+                                    ? 'text-emerald-700 focus:bg-emerald-50 focus:text-emerald-800'
+                                    : 'text-brand-charcoal hover:text-brand-ink focus:bg-brand-cream focus:text-brand-ink'
+                                )}
+                              >
+                                {action.icon && <span className="flex-shrink-0 text-current">{action.icon}</span>}
+                                <span className="truncate">{action.label}</span>
+                              </DropdownMenuItem>
+                            </div>
                           ))}
                         </DropdownMenuContent>
                       </DropdownMenu>

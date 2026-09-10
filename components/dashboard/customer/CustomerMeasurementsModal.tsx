@@ -16,7 +16,11 @@ import {
   X,
   ChevronDown,
   ChevronUp,
+  Sparkles,
+  MessageCircle,
 } from 'lucide-react'
+import { GARMENT_PRESETS } from '@/lib/constants/presets'
+import { createWhatsAppUrl, getMeasurementsSummaryMessage } from '@/lib/utils/whatsapp'
 import { cn } from '@/lib/utils'
 
 interface Customer {
@@ -206,19 +210,56 @@ export function CustomerMeasurementsModal({
           <div className="text-sm text-brand-stone">Loading existing measurement values...</div>
         )}
 
+        {/* Quick Garment Presets */}
+        <div>
+          <p className="text-xs font-bold text-brand-ink uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Sparkles size={13} className="text-brand-gold" />
+            Quick Garment Presets (1-Tap Selection)
+          </p>
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+            {GARMENT_PRESETS.map((preset) => (
+              <button
+                key={preset.id}
+                type="button"
+                onClick={() => {
+                  setSelectedMeasurements((prev) => {
+                    const next = { ...prev }
+                    preset.recommendedFields.forEach((fieldKey) => {
+                      if (!(fieldKey in next)) next[fieldKey] = ''
+                    })
+                    return next
+                  })
+                  toast.success(`Loaded fields for ${preset.name}!`)
+                }}
+                className="p-2.5 rounded-xl border border-brand-border bg-white hover:border-brand-gold hover:bg-brand-cream/60 text-left transition-all group"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-xl flex-shrink-0">{preset.icon}</span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-bold text-brand-ink group-hover:text-brand-gold transition-colors truncate">
+                      {preset.name.split('/')[0]}
+                    </p>
+                    <p className="text-[10px] text-brand-stone truncate">{preset.recommendedFields.length} measures</p>
+                  </div>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
         {/* Standard Measurements Picker */}
         <div>
           <Button
             type="button"
             variant="outline"
-            className="w-full justify-between"
+            className="w-full justify-between rounded-xl h-11 border-brand-border hover:bg-brand-cream"
             onClick={() => setShowPicker((p) => !p)}
           >
-            <span className="flex items-center gap-2">
+            <span className="flex items-center gap-2 text-xs font-semibold">
               <Plus className="h-4 w-4" />
-              Choose from standard measurements
+              Pick from All Standard Anatomical Measurements
               {Object.keys(selectedMeasurements).length > 0 && (
-                <Badge variant="secondary">{Object.keys(selectedMeasurements).length} selected</Badge>
+                <Badge variant="secondary" className="ml-1 font-bold">{Object.keys(selectedMeasurements).length} chosen</Badge>
               )}
             </span>
             {showPicker ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
@@ -273,7 +314,7 @@ export function CustomerMeasurementsModal({
         {/* Selected Standard Measurements */}
         {Object.keys(selectedMeasurements).length > 0 && (
           <div>
-            <p className="text-sm font-medium text-brand-ink mb-3">Standard Measurements (cm)</p>
+            <p className="text-sm font-medium text-brand-ink mb-3">Standard Measurements (inches &quot;)</p>
             <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
               {Object.keys(selectedMeasurements).map((key) => {
                 const def = STANDARD_MEASUREMENTS.find((m) => m.key === key)
@@ -373,6 +414,27 @@ export function CustomerMeasurementsModal({
             className="mt-1"
           />
         </div>
+
+        {/* 1-Click WhatsApp Share for saved measurements */}
+        {Object.keys(selectedMeasurements).length > 0 && (
+          <button
+            type="button"
+            onClick={() => {
+              const customerName = `${customer.first_name} ${customer.last_name ?? ''}`.trim()
+              const rawMap: Record<string, string> = { ...selectedMeasurements }
+              customMeasurements.forEach((cm) => {
+                if (cm.name && cm.value) rawMap[cm.name] = cm.value
+              })
+              const msg = getMeasurementsSummaryMessage(customerName, 'TailorPal Atelier', rawMap, measurementNotes)
+              const url = createWhatsAppUrl(null, msg)
+              window.open(url, '_blank', 'noopener,noreferrer')
+            }}
+            className="w-full h-11 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center justify-center gap-2 transition-all shadow-sm"
+          >
+            <MessageCircle size={15} />
+            Share Measurements with Client on WhatsApp
+          </button>
+        )}
       </div>
     </ModalForm>
   )
