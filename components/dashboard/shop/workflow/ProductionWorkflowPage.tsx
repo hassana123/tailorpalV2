@@ -2,10 +2,12 @@
 
 import { FormEvent, useEffect, useState } from 'react'
 import { useParams } from 'next/navigation'
-import { Check, Clock3, Loader2, Play, Plus, Square, UsersRound, Workflow, Sparkles, AlertTriangle, ArrowUp, ArrowDown } from 'lucide-react'
+import { Check, Clock3, Loader2, Play, Plus, Square, UsersRound, Workflow, Sparkles, AlertTriangle, ArrowUp, ArrowDown, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
+import { GarmentRecipeModal } from '@/components/dashboard/shop/workflow/GarmentRecipeModal'
+import { createWhatsAppUrl, getFittingReminderMessage } from '@/lib/utils/whatsapp'
 
 type Stage = {
   id: string
@@ -25,7 +27,7 @@ type Order = {
   id: string
   order_number: string
   design_description: string | null
-  customers: { first_name: string; last_name: string | null } | null
+  customers: { first_name: string; last_name: string | null; phone?: string | null } | null
 }
 
 type Task = {
@@ -51,6 +53,7 @@ export function ProductionWorkflowPage() {
   const [tasks, setTasks] = useState<Task[]>([])
   const [loading, setLoading] = useState(true)
   const [stageName, setStageName] = useState('')
+  const [recipeModalOpen, setRecipeModalOpen] = useState(false)
   const [form, setForm] = useState({
     order: '',
     stage: '',
@@ -77,7 +80,7 @@ export function ProductionWorkflowPage() {
           .eq('status', 'active'),
         supabase
           .from('orders')
-          .select('id,order_number,design_description,customers(first_name,last_name)')
+          .select('id,order_number,design_description,customers(first_name,last_name,phone)')
           .eq('shop_id', shopId)
           .in('status', ['pending', 'in_progress']),
         supabase
@@ -218,17 +221,28 @@ export function ProductionWorkflowPage() {
               'radial-gradient(circle at 85% 20%, #D97B2B 0%, transparent 40%)',
           }}
         />
-        <div className="relative">
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-gold-light text-xs font-bold uppercase tracking-[0.18em] mb-3">
-            <Workflow size={13} />
-            Workshop Operations
+        <div className="relative flex flex-col lg:flex-row lg:items-end lg:justify-between gap-4">
+          <div>
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 text-brand-gold-light text-xs font-bold uppercase tracking-[0.18em] mb-3">
+              <Workflow size={13} />
+              Workshop Floor Operations
+            </div>
+            <h1 className="font-display text-3xl lg:text-4xl text-white">
+              Run every order, stage by stage.
+            </h1>
+            <p className="text-white/70 mt-2 max-w-2xl text-sm leading-relaxed">
+              Organize cutting, sewing, and fitting flow. Assign makers, time active tasks, and auto-populate standard garment recipes.
+            </p>
           </div>
-          <h1 className="font-display text-3xl lg:text-4xl text-white">
-            Run every order, stage by stage.
-          </h1>
-          <p className="text-white/70 mt-2 max-w-2xl text-sm leading-relaxed">
-            Organize your cutting, sewing, fitting, and finishing flow. Assign makers, log active production time, and deliver every garment on schedule.
-          </p>
+
+          <button
+            type="button"
+            onClick={() => setRecipeModalOpen(true)}
+            className="h-11 px-5 rounded-xl bg-brand-gold hover:bg-brand-gold/90 text-white text-xs font-bold flex items-center gap-2 shadow-brand transition-all cursor-pointer self-start lg:self-auto shrink-0"
+          >
+            <Sparkles size={14} />
+            Apply Garment Recipe
+          </button>
         </div>
       </section>
 
@@ -240,9 +254,19 @@ export function ProductionWorkflowPage() {
       <div className="grid lg:grid-cols-3 gap-5">
         {/* Create Task Form */}
         <section className="lg:col-span-2 rounded-2xl bg-white border border-brand-border p-5 lg:p-6 shadow-xs">
-          <div className="flex items-center gap-2 mb-4">
-            <Sparkles size={18} className="text-brand-gold" />
-            <h2 className="font-display text-xl text-brand-ink">Create Workshop Task</h2>
+          <div className="flex items-center justify-between gap-3 mb-4">
+            <div className="flex items-center gap-2">
+              <Sparkles size={18} className="text-brand-gold" />
+              <h2 className="font-display text-xl text-brand-ink">Create Workshop Task</h2>
+            </div>
+            <button
+              type="button"
+              onClick={() => setRecipeModalOpen(true)}
+              className="h-8 px-3 rounded-xl bg-brand-cream border border-brand-border text-brand-charcoal hover:bg-white text-xs font-bold flex items-center gap-1.5 transition-colors"
+            >
+              <Sparkles size={12} className="text-brand-gold" />
+              Presets / Recipes
+            </button>
           </div>
 
           <form onSubmit={addTask} className="grid sm:grid-cols-2 gap-3.5">
@@ -513,6 +537,26 @@ export function ProductionWorkflowPage() {
                       <Check size={13} /> Complete
                     </button>
                     <select value={t.status} onChange={(e)=>void updateTask(t.id,{status:e.target.value, completed_at:e.target.value==='done'?new Date().toISOString():null})} className="h-9 rounded-xl border border-brand-border px-2 text-xs"><option value="todo">Pending</option><option value="in_progress">In progress</option><option value="done">Completed</option></select>
+
+                    {stage?.name?.toLowerCase().includes('fit') && order?.customers?.phone && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          const client = order.customers?.first_name || 'Client'
+                          const msg = getFittingReminderMessage({
+                            customerName: client,
+                            shopName: 'Our Atelier',
+                            orderNumber: order.order_number,
+                            garmentDescription: order.design_description || 'your bespoke piece',
+                          })
+                          window.open(createWhatsAppUrl(order.customers?.phone, msg), '_blank')
+                        }}
+                        className="h-9 px-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition-colors flex gap-1 items-center cursor-pointer"
+                        title="Send WhatsApp fitting reminder"
+                      >
+                        <Phone size={11} /> WhatsApp
+                      </button>
+                    )}
                   </div>
                 </div>
               )
@@ -520,6 +564,15 @@ export function ProductionWorkflowPage() {
           </div>
         )}
       </section>
+
+      {/* Smart Garment Recipe Modal */}
+      <GarmentRecipeModal
+        open={recipeModalOpen}
+        onClose={() => setRecipeModalOpen(false)}
+        shopId={shopId}
+        orders={orders}
+        onApplied={() => void load()}
+      />
     </main>
   )
 }

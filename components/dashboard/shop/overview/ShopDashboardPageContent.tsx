@@ -370,7 +370,7 @@ export function ShopDashboardPageContent() {
             className="h-10 px-4 rounded-2xl bg-brand-cream border border-brand-border text-brand-ink hover:bg-white text-xs font-bold transition-all flex items-center gap-2 whitespace-nowrap flex-shrink-0"
           >
             <Workflow size={14} className="text-brand-gold" />
-            <span>Production Planner</span>
+            <span>Floor Board</span>
           </Link>
 
           <Link
@@ -539,7 +539,7 @@ export function ShopDashboardPageContent() {
               Live atelier stats
             </span>
             <Link href={`/dashboard/shop/${shopId}/planner`} className="font-bold text-brand-ink hover:underline">
-              Open Planner →
+              Open Floor Board →
             </Link>
           </div>
         </div>

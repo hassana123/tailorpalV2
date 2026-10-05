@@ -30,6 +30,8 @@ import {
   X,
   Sparkles,
   MessageCircle,
+  Camera,
+  Loader2,
 } from 'lucide-react'
 import { GARMENT_PRESETS, GarmentPreset } from '@/lib/constants/presets'
 import { createWhatsAppUrl, getMeasurementsSummaryMessage } from '@/lib/utils/whatsapp'
@@ -255,6 +257,7 @@ export function MeasurementsPageContent() {
   const [selectedCustomerId, setSelectedCustomerId] = useState('')
   const [selectedMeasurements, setSelectedMeasurements] = useState<Record<string, string>>({})
   const [customMeasurements, setCustomMeasurements] = useState<{ name: string; value: string }[]>([])
+  const [isScanningSheet, setIsScanningSheet] = useState(false)
   const [newCustomName, setNewCustomName] = useState('')
   const [notes, setNotes] = useState('')
   const [showQuickCustomerForm, setShowQuickCustomerForm] = useState(false)
@@ -334,10 +337,28 @@ export function MeasurementsPageContent() {
     setSelectedCustomerId('')
     setSelectedMeasurements({})
     setCustomMeasurements([])
+    setIsScanningSheet(false)
     setNewCustomName('')
     setNotes('')
     setShowQuickCustomerForm(false)
     setQuickCustomerForm(initialQuickCustomerForm)
+  }
+
+  const scanMeasurementSheet = async (file?: File) => {
+    if (!file) return
+    if (!file.type.startsWith('image/')) { toast.error('Choose an image file'); return }
+    setIsScanningSheet(true)
+    try {
+      const image = await new Promise<string>((resolve, reject) => { const reader = new FileReader(); reader.onload = () => resolve(String(reader.result)); reader.onerror = reject; reader.readAsDataURL(file) })
+      const response = await fetch('/api/measurements/scan', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ image }) })
+      const payload = await response.json() as { measurements?: Record<string, number>; unmatched?: string[]; notes?: string; error?: string }
+      if (!response.ok) throw new Error(payload.error || 'Could not scan measurement sheet')
+      const scanned = Object.fromEntries(Object.entries(payload.measurements || {}).map(([key, value]) => [key, String(value)]))
+      setSelectedMeasurements((previous) => ({ ...previous, ...scanned }))
+      if (payload.notes) setNotes((previous) => previous ? `${previous}\n${payload.notes}` : payload.notes || '')
+      toast.success(`Found ${Object.keys(scanned).length} measurement${Object.keys(scanned).length === 1 ? '' : 's'}. Please review before saving.`)
+      if (payload.unmatched?.length) toast.message(`${payload.unmatched.length} item(s) need manual review.`)
+    } catch (error) { toast.error(error instanceof Error ? error.message : 'Could not scan measurement sheet') } finally { setIsScanningSheet(false) }
   }
 
   const handleQuickCustomerKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
@@ -677,6 +698,18 @@ export function MeasurementsPageContent() {
         maxWidth="2xl"
       >
         <div className="space-y-6">
+
+          <div className="rounded-2xl border border-dashed border-brand-gold/50 bg-brand-cream/40 p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <p className="text-sm font-bold text-brand-ink flex items-center gap-1.5"><Camera size={15} className="text-brand-gold" />Scan a written measurement sheet</p>
+              <p className="text-xs text-brand-stone mt-1">Take a clear photo of the paper. TailorPal fills the fields below; you review and correct them before saving.</p>
+            </div>
+            <label className={`inline-flex h-10 items-center justify-center gap-2 rounded-xl px-4 text-xs font-bold text-white cursor-pointer ${isScanningSheet ? 'bg-brand-stone' : 'bg-brand-ink hover:bg-brand-charcoal'}`}>
+              {isScanningSheet ? <Loader2 size={14} className="animate-spin" /> : <Camera size={14} />}
+              {isScanningSheet ? 'Reading sheet…' : 'Take photo / upload'}
+              <input type="file" accept="image/*" capture="environment" className="hidden" disabled={isScanningSheet} onChange={(event) => { void scanMeasurementSheet(event.target.files?.[0]); event.target.value = '' }} />
+            </label>
+          </div>
 
           {/* Customer select */}
           <div className="space-y-2">

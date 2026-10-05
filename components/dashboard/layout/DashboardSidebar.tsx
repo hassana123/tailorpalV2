@@ -15,7 +15,7 @@ interface DashboardSidebarProps {
 }
 
 const STUDIO_LABELS = ['Dashboard', 'Customers', 'Orders', 'Measurements']
-const WORKSHOP_LABELS = ['Production Planner', 'Production Workflow', 'Inventory', 'Staff']
+const WORKSHOP_LABELS = ['Floor Board', 'Workshop Floor', 'Production Planner', 'Production Workflow', 'Inventory', 'Staff']
 
 export function DashboardSidebar({
   sidebarOpen,

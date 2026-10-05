@@ -26,17 +26,19 @@ export default function ShopDashboardRedirect() {
       // Get user's shops
       const { data: shops, error } = await supabase
         .from('shops')
-        .select('id')
+        .select('id,name')
         .eq('owner_id', user.id)
         .order('created_at', { ascending: true })
-        .limit(1)
 
       if (error) {
         throw error
       }
 
       if (shops && shops.length > 0) {
-        router.push(`/dashboard/shop/${shops[0].id}`)
+        let savedShopId: string | null = null
+        try { savedShopId = localStorage.getItem(`tailorpal:selected-shop:${user.id}`) } catch { /* Use the first shop when storage is unavailable. */ }
+        const selectedShop = shops.find(shop => shop.id === savedShopId) ?? shops[0]
+        router.replace(`/dashboard/shop/${selectedShop.id}`)
       } else {
         // No shop yet, redirect to setup
         router.push('/dashboard/shop/setup')

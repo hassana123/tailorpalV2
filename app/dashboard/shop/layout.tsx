@@ -4,6 +4,7 @@ import { ReactNode, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { AccountProfileDialog } from '@/components/dashboard/layout/AccountProfileDialog'
 import { DashboardHeader }      from '@/components/dashboard/layout/DashboardHeader'
+import { ShopSwitcher } from '@/components/dashboard/layout/ShopSwitcher'
 import { DashboardSidebar }     from '@/components/dashboard/layout/DashboardSidebar'
 import { MobileBottomNav } from '@/components/dashboard/layout/MobileBottomNav'
 import type { DashboardNavItem } from '@/components/dashboard/layout/types'
@@ -19,6 +20,8 @@ import {
   Sparkles,
   Workflow,
   WalletCards,
+  BellRing,
+  BarChart3,
   X
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -311,10 +314,12 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         { href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart },
         { href: `/dashboard/shop/${shopId}/measurements`, label: 'Measurements', icon: Ruler },
         // Workshop Group
-        { href: `/dashboard/shop/${shopId}/planner`, label: 'Production Planner', icon: Sparkles },
-        { href: `/dashboard/shop/${shopId}/workflow`, label: 'Production Workflow', icon: Workflow },
+        { href: `/dashboard/shop/${shopId}/planner`, label: 'Floor Board', icon: Sparkles },
+        { href: `/dashboard/shop/${shopId}/workflow`, label: 'Workshop Floor', icon: Workflow },
         { href: `/dashboard/shop/${shopId}/inventory`, label: 'Inventory', icon: Boxes },
         { href: `/dashboard/shop/${shopId}/finance`, label: 'Finance', icon: WalletCards },
+        { href: `/dashboard/shop/${shopId}/notifications`, label: 'Notifications', icon: BellRing },
+        { href: `/dashboard/shop/${shopId}/analytics`, label: 'Insights', icon: BarChart3 },
         { href: `/dashboard/shop/${shopId}/staff`, label: 'Staff', icon: Users },
         // Atelier & Commerce
         { href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package },
@@ -335,8 +340,8 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
       }
       if (staffPermissions.can_manage_orders) {
         staffNav.push({ href: `/dashboard/shop/${shopId}/orders`, label: 'Orders', icon: ShoppingCart })
-        staffNav.push({ href: `/dashboard/shop/${shopId}/planner`, label: 'Production Planner', icon: Sparkles })
-        staffNav.push({ href: `/dashboard/shop/${shopId}/workflow`, label: 'Production Workflow', icon: Workflow })
+        staffNav.push({ href: `/dashboard/shop/${shopId}/planner`, label: 'Floor Board', icon: Sparkles })
+        staffNav.push({ href: `/dashboard/shop/${shopId}/workflow`, label: 'Workshop Floor', icon: Workflow })
       }
       if (staffPermissions.can_manage_catalog) {
         staffNav.push({ href: `/dashboard/shop/${shopId}/catalog`, label: 'Catalog', icon: Package })
@@ -449,6 +454,8 @@ export default function ShopLayout({ children }: { children: ReactNode }) {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header - Responsive */}
           <DashboardHeader
+            shopSwitcher={isOwnerForShop && userId && shopId
+              ? <ShopSwitcher shopId={shopId} ownerId={userId} shopName={shopName} /> : undefined}
             subtitle={shopName || 'Shop Dashboard'}
             shopName={shopName}
             firstName={firstName}

@@ -2,9 +2,11 @@
 
 import { Search, ChevronDown, Menu } from 'lucide-react'
 import { useState } from 'react'
+import type { ReactNode } from 'react'
 import { NotificationFeed } from './NotificationFeed'
 
 interface DashboardHeaderProps {
+  shopSwitcher?: ReactNode
   subtitle: string
   shopName?: string
   firstName?: string
@@ -15,6 +17,7 @@ interface DashboardHeaderProps {
 }
 
 export function DashboardHeader({
+  shopSwitcher,
   subtitle,
   shopName,
   firstName,
@@ -47,8 +50,8 @@ export function DashboardHeader({
       </button>
 
       {/* Page title */}
-      <div className="flex-shrink-0 min-w-0">
-        <h2 className="text-sm lg:text-base font-bold text-brand-ink truncate">{subtitle}</h2>
+      <div className="flex-shrink min-w-0">
+        {shopSwitcher || <h2 className="text-sm lg:text-base font-bold text-brand-ink truncate">{subtitle}</h2>}
       </div>
 
       {/* Search bar — centre */}

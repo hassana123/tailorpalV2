@@ -158,7 +158,7 @@ Source-only implementations awaiting end-to-end verification: customers, orders,
 - [x] ☐ Calculate total expenses
 - [x] ☐ Calculate profit after expenses
 - [x] ☐ Show profit per order
-- [ ] ☐ Show profit over a selected period
+- [x] ☐ Show profit over a selected period
 - [ ] ☐ Add pricing/profit calculator
 - [ ] ☐ Suggest profitable pricing based on costs
 
@@ -293,18 +293,18 @@ Source-only implementations awaiting end-to-end verification: customers, orders,
 - [x] ☐ Total orders
 - [x] ☐ Completed orders
 - [x] ☐ Pending orders
-- [ ] ☐ Overdue orders
-- [ ] ☐ Orders at risk
-- [ ] ☐ Total revenue
-- [ ] ☐ Total expenses
-- [ ] ☐ Total profit
-- [ ] ☐ Outstanding customer balances
-- [ ] ☐ Best-performing garment types
-- [ ] ☐ Average production time
+- [x] ☐ Overdue orders
+- [x] ☐ Orders at risk
+- [x] ☐ Total revenue
+- [x] ☐ Total expenses
+- [x] ☐ Total profit
+- [x] ☐ Outstanding customer balances
+- [x] ☐ Best-performing garment types
+- [x] ☐ Average production time
 - [ ] ☐ Staff productivity
-- [ ] ☐ Production completion rate
-- [ ] ☐ Monthly/weekly business reports
-- [ ] ☐ Export reports
+- [x] ☐ Production completion rate
+- [x] ☐ Monthly/weekly business reports
+- [x] ☐ Export reports
 
 **Status:** ☐ Not Started | ☐ In Progress | ☐ Completed
 
@@ -354,10 +354,10 @@ Source-only implementations awaiting end-to-end verification: customers, orders,
 
 # 🤖 16. Optional Later Differentiator — AI Measurements
 
-- [ ] ☐ Research AI-based body measurement from photos
+- [x] ☐ Research AI-based body measurement from photos
 - [ ] ☐ Determine which measurements can realistically be estimated
-- [ ] ☐ Design photo capture flow
-- [ ] ☐ Build photo measurement prototype
+- [x] ☐ Design photo capture flow
+- [x] ☐ Build photo measurement prototype
 - [ ] ☐ Compare AI measurements against manual measurements
 - [ ] ☐ Add confidence/accuracy indicators
 - [ ] ☐ Allow manual correction

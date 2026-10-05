@@ -33,6 +33,7 @@ export async function POST(request: NextRequest) {
             }
           : undefined,
         cookies: {
+          encode: 'tokens-only',
           getAll() {
             return cookieStore.getAll()
           },
@@ -59,7 +60,7 @@ export async function POST(request: NextRequest) {
     const {
       data: { user },
       error: userError,
-    } = await supabase.auth.getUser()
+    } = await supabase.auth.getUser(accessToken ?? undefined)
 
     if (userError || !user) {
       return NextResponse.json(

@@ -150,24 +150,18 @@ export default function ChooseRolePage() {
     setError(null)
 
     try {
-      const {
-        data: { session },
-      } = await supabase.auth.getSession()
-
-      const headers: HeadersInit = { 'Content-Type': 'application/json' }
-      if (session?.access_token) {
-        headers.Authorization = `Bearer ${session.access_token}`
-      }
-
       const res = await fetch('/api/auth/set-user-type', {
         method: 'POST',
         credentials: 'include',
-        headers,
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ userType: selected }),
       })
 
       const payload = (await res.json().catch(() => null)) as { error?: string } | null
       if (!res.ok) {
+        if (res.status === 431) {
+          throw new Error('Your browser has oversized sign-in cookies. Clear cookies for this site, sign in again, and retry choosing your role.')
+        }
         throw new Error(payload?.error || 'Failed to set user role')
       }
 

@@ -13,6 +13,7 @@ export async function updateSession(request: NextRequest) {
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
+        encode: 'tokens-only',
         getAll() {
           return request.cookies.getAll()
         },
@@ -48,7 +49,9 @@ export async function updateSession(request: NextRequest) {
   if (isProtectedPath && !user) {
     const url = request.nextUrl.clone()
     url.pathname = '/auth/login'
-    return NextResponse.redirect(url)
+    const redirectResponse = NextResponse.redirect(url)
+    supabaseResponse.cookies.getAll().forEach(cookie => redirectResponse.cookies.set(cookie))
+    return redirectResponse
   }
 
   // IMPORTANT: You *must* return the supabaseResponse object as it is.
